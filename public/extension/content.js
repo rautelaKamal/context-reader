@@ -52,29 +52,29 @@ class ContextReader {
 
   handleTextSelection() {
     console.log('ContextReader: Mouse up detected');
+    
+    // Get selected text
     const selection = window.getSelection();
-    const selectedText = selection?.toString().trim();
-    
-    if (!selectedText) {
-      console.log('ContextReader: No text selected');
-      return;
-    }
+    const selectedText = selection.toString().trim();
 
-    console.log('ContextReader: Text selected:', selectedText);
-    this.selectedText = selectedText;
+    if (selectedText) {
+      console.log('ContextReader: Text selected:', selectedText);
+      this.selectedText = selectedText;
+      
+      // Get selection coordinates
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      
+      // Show popup below the selection
+      console.log('ContextReader: Showing popup below selection at:', rect.left, rect.bottom);
+      this.showPopup(rect.left, rect.bottom);
+    } else {
+      console.log('ContextReader: No text selected');
+      this.selectedText = '';
+      this.hidePopup();
+    }
     
-    // Get selection coordinates
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    
-    // Calculate popup position
-    const x = rect.left + window.scrollX;
-    const y = rect.bottom + window.scrollY;
-    console.log('ContextReader: Showing popup at:', x, y);
-    
-    this.showPopup(x, y);
-    
-    // Prevent the click handler from immediately hiding the popup
+    // Prevent default context menu from immediately hiding the popup
     this.justCreatedPopup = true;
     setTimeout(() => {
       this.justCreatedPopup = false;
@@ -140,13 +140,25 @@ class ContextReader {
       const viewportHeight = window.innerHeight;
       const padding = 10;
 
+      // Calculate initial position (below selection)
       let top = y + padding;
       let left = Math.min(x, viewportWidth - popupRect.width - padding);
 
-      // Check if popup would go below viewport
+      // If popup would go off the bottom of the viewport
       if (top + popupRect.height > viewportHeight) {
-        // Position above the selection if not enough space below
-        top = y - popupRect.height - padding;
+        // Try positioning above the selection
+        const selectionRange = window.getSelection().getRangeAt(0);
+        const selectionRect = selectionRange.getBoundingClientRect();
+        top = selectionRect.top - popupRect.height - padding;
+        
+        // If that would go off the top, position at the mouse Y but scrolled into view
+        if (top < 0) {
+          top = Math.max(padding, y);
+          // Ensure the popup is visible by scrolling if needed
+          setTimeout(() => {
+            this.popup.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+        }
       }
 
       // Ensure left edge visibility
