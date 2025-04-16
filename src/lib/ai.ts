@@ -9,28 +9,28 @@ export async function getExplanation(text: string): Promise<string> {
     }
 
     // Using T5 model for better explanations
-    const prompt = `Act as a helpful reader who understands complex text easily. For the following text:
+    const prompt = `Context: The following is a piece of text that needs to be explained in simple terms.
 
-${text}
+Text: "${text}"
 
-Explain in simple, everyday language:
-1. What is the main message the author is trying to convey?
-2. What does this mean in practical terms?
-3. Why is this important?
+Provide a simple and clear explanation that:
+- Explains what this means in everyday language
+- Highlights why it matters
+- Gives a real-world example if relevant
 
-Make your explanation friendly and easy to understand, as if you're explaining it to a friend.`;
+Keep the tone conversational and friendly, like explaining to a friend. Focus on helping the reader understand the key point.`;
     
     const response = await hf.textGeneration({
       model: 'google/flan-t5-large',
       inputs: prompt,
       parameters: {
-        max_length: 350,
-        min_length: 150,
-        temperature: 0.8,
-        top_p: 0.9,
+        max_length: 200,
+        min_length: 50,
+        temperature: 0.3,
+        top_p: 0.8,
         do_sample: true,
-        no_repeat_ngram_size: 3,
-        repetition_penalty: 1.2
+        no_repeat_ngram_size: 2,
+        repetition_penalty: 1.5
       }
     });
 
