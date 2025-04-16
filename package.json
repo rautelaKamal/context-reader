@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "package-extension": "node scripts/package-extension.js"
+    "package-extension": "node scripts/package-extension.js",
+    "prisma:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.4.2",
