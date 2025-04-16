@@ -100,13 +100,19 @@ class ContextReader {
   }
 
   showPopup(x, y) {
+    // Clear any existing popup
     if (this.popup) {
       this.hidePopup();
     }
 
+    // Reset popup ignore state
+    this.lastPopupTime = Date.now();
+
     // Create popup container
     this.popup = document.createElement('div');
     this.popup.className = 'context-reader-popup';
+    this.popup.style.display = 'block';
+    this.popup.style.background = 'white';
     
     // Create and set up iframe
     const iframe = document.createElement('iframe');
@@ -126,33 +132,36 @@ class ContextReader {
     // Add popup to page
     document.body.appendChild(this.popup);
 
-    // Position popup
-    const popupRect = this.popup.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const padding = 10;
+    // Wait for next frame to get correct dimensions
+    requestAnimationFrame(() => {
+      // Position popup
+      const popupRect = this.popup.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const padding = 10;
 
-    let top = y + padding;
-    let left = Math.min(x, viewportWidth - popupRect.width - padding);
+      let top = y + padding;
+      let left = Math.min(x, viewportWidth - popupRect.width - padding);
 
-    // Check if popup would go below viewport
-    if (top + popupRect.height > viewportHeight) {
-      // Position above the selection if not enough space below
-      top = y - popupRect.height - padding;
-    }
+      // Check if popup would go below viewport
+      if (top + popupRect.height > viewportHeight) {
+        // Position above the selection if not enough space below
+        top = y - popupRect.height - padding;
+      }
 
-    // Ensure left edge visibility
-    left = Math.max(padding, left);
+      // Ensure left edge visibility
+      left = Math.max(padding, left);
 
-    // Add scroll offset
-    top += window.scrollY;
-    left += window.scrollX;
+      // Add scroll offset
+      top += window.scrollY;
+      left += window.scrollX;
 
-    // Apply position
-    this.popup.style.position = 'absolute';
-    this.popup.style.top = `${top}px`;
-    this.popup.style.left = `${left}px`;
-    this.popup.style.zIndex = '999999';
+      // Apply position
+      this.popup.style.position = 'absolute';
+      this.popup.style.top = `${top}px`;
+      this.popup.style.left = `${left}px`;
+      this.popup.style.zIndex = '999999';
+    });
   }
 
   hidePopup() {
