@@ -1,20 +1,6 @@
 // Content script for ContextReader extension
 console.log('ContextReader: Content script loaded');
 
-// Add global click handler for debugging
-document.addEventListener('click', (e) => {
-  console.log('ContextReader: Global click detected on:', {
-    target: e.target,
-    className: e.target.className,
-    id: e.target.id,
-    tagName: e.target.tagName,
-    text: e.target.textContent
-  });
-});
-
-// Ensure the content script is running in the correct context
-console.log('ContextReader: Running in context:', window.location.href);
-
 class ContextReader {
   constructor() {
     console.log('ContextReader: Initializing...');
@@ -22,14 +8,16 @@ class ContextReader {
     this.selectedText = '';
     this.popup = null;
     this.justCreatedPopup = false;
-    // Get API base URL from environment or default to production
-    this.API_BASE_URL = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3000' 
+    
+    // Get API base URL based on extension development mode
+    this.API_BASE_URL = chrome?.runtime?.getManifest()?.version?.includes('dev')
+      ? 'http://localhost:3000'
       : 'https://context-reader.onrender.com';
     
     // Bind event handlers
     this.handleTextSelection = this.handleTextSelection.bind(this);
     this.handleClick = this.handleClick.bind(this);
+    this.handleMessage = this.handleMessage.bind(this);
     
     // Set up event listeners
     this.setupEventListeners();
@@ -41,27 +29,43 @@ class ContextReader {
     console.log('ContextReader: Setting up event listeners...');
     document.addEventListener('mouseup', this.handleTextSelection);
     document.addEventListener('click', this.handleClick);
-    window.addEventListener('message', this.handleMessage.bind(this));
+    window.addEventListener('message', this.handleMessage);
     console.log('ContextReader: Event listeners setup complete');
+  }
+
+  handleMessage(event) {
+    console.log('ContextReader: Message received:', event.data);
+    if (!this.selectedText) {
+      console.error('ContextReader: No text selected');
+      this.showResult('Error: Please select some text first');
+      return;
+    }
+
+    if (event.data.type === 'explain') {
+      console.log('ContextReader: Explain message received');
+      this.explain();
+    } else if (event.data.type === 'translate') {
+      console.log('ContextReader: Translate message received for text:', this.selectedText);
+      this.translate();
+    }
   }
 
   handleTextSelection() {
     console.log('ContextReader: Mouse up detected');
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim();
-    console.log('ContextReader: Selected text:', selectedText);
     
     if (!selectedText) {
       console.log('ContextReader: No text selected');
       return;
     }
 
+    console.log('ContextReader: Text selected:', selectedText);
     this.selectedText = selectedText;
     
     // Get selection coordinates
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    console.log('ContextReader: Selection rect:', rect);
     
     // Calculate popup position
     const x = rect.left + window.scrollX;
@@ -78,111 +82,61 @@ class ContextReader {
   }
 
   handleClick(event) {
-    console.log('ContextReader: Click detected on:', event.target.outerHTML);
-    
     // Don't hide the popup if we just created it
     if (this.justCreatedPopup) {
       console.log('ContextReader: Ignoring click due to recent popup creation');
       return;
     }
 
-    // Handle button clicks
-    console.log('ContextReader: Checking if clicked element is explain button:', event.target.className);
-    if (event.target.matches('.explain-btn')) {
-      console.log('ContextReader: Explain button clicked with selected text:', this.selectedText);
-      console.log('ContextReader: Button HTML:', event.target.outerHTML);
-      event.preventDefault();
-      event.stopPropagation();
-      console.log('ContextReader: Calling explain method...');
-      this.explain();
-      return;
-    }
-    
-    if (event.target.matches('.translate-btn')) {
-      console.log('ContextReader: Translate button clicked with selected text:', this.selectedText);
-      event.preventDefault();
-      event.stopPropagation();
-      this.translate();
-      return;
-    }
-
     // Check if clicked element is inside popup
     if (this.popup && this.popup.contains(event.target)) {
-      console.log('ContextReader: Click inside popup');
       return;
     }
     
     // Hide popup if clicked outside
     if (this.popup) {
-      console.log('ContextReader: Clicked outside popup, hiding it');
       this.hidePopup();
     }
   }
 
   showPopup(x, y) {
-    console.log('ContextReader: Creating popup...');
     if (this.popup) {
-      console.log('ContextReader: Removing existing popup');
       this.hidePopup();
     }
 
-    // Create container for iframe
+    // Create popup container
     this.popup = document.createElement('div');
     this.popup.className = 'context-reader-popup';
     
     // Create and set up iframe
     const iframe = document.createElement('iframe');
-    iframe.src = chrome.runtime.getURL('popup.html');
+    // Check if running in extension context
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      iframe.src = chrome.runtime.getURL('popup.html');
+    } else {
+      // Fallback for development environment
+      iframe.src = '/extension/popup.html';
+      console.warn('ContextReader: Running outside extension context, using fallback path');
+    }
     iframe.style.border = 'none';
     iframe.style.width = '300px';
-    iframe.style.height = '0';
-    iframe.style.overflow = 'hidden';
-    iframe.style.transition = 'height 0.2s ease';
-    
+    iframe.style.height = '150px';
     this.popup.appendChild(iframe);
-    
-    // Add message listener for iframe communication
-    window.addEventListener('message', (event) => {
-      if (event.data.type === 'explain') {
-        this.explain();
-      } else if (event.data.type === 'translate') {
-        this.translate();
-      }
-    });
-    
-    // Wait for iframe to load then send the selected text
-    iframe.addEventListener('load', () => {
-      iframe.contentWindow.postMessage({
-        type: 'setText',
-        text: this.selectedText
-      }, '*');
-      
-      // Set initial height after content is ready
-      iframe.style.height = '100px';
-    });
-    
-    console.log('ContextReader: Created popup with iframe');
 
+    // Add popup to page
     document.body.appendChild(this.popup);
-    console.log('ContextReader: Popup added to DOM');
 
-    // Position the popup with improved boundary handling
+    // Position popup
     const popupRect = this.popup.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    const padding = 10; // Padding from viewport edges
+    const viewportHeight = window.innerHeight;
+    const padding = 10;
 
-    // Initial position at selection
-    let top = y;
-    let left = x;
+    let top = y + padding;
+    let left = Math.min(x, viewportWidth - popupRect.width - padding);
 
-    // Adjust for right edge
-    if (left + popupRect.width > viewportWidth - padding) {
-      left = viewportWidth - popupRect.width - padding;
-    }
-
-    // Adjust for bottom edge
-    if (top + popupRect.height > viewportHeight - padding) {
+    // Check if popup would go below viewport
+    if (top + popupRect.height > viewportHeight) {
       // Position above the selection if not enough space below
       top = y - popupRect.height - padding;
     }
@@ -190,138 +144,122 @@ class ContextReader {
     // Ensure left edge visibility
     left = Math.max(padding, left);
 
-    // Add scroll offset to account for page scroll
+    // Add scroll offset
     top += window.scrollY;
     left += window.scrollX;
 
-    if (top + popupRect.height > viewportHeight) {
-      top = y - popupRect.height;
-    }
-    if (left + popupRect.width > viewportWidth) {
-      left = x - popupRect.width;
-    }
-
-    // Apply the calculated position
+    // Apply position
     this.popup.style.position = 'absolute';
     this.popup.style.top = `${top}px`;
     this.popup.style.left = `${left}px`;
     this.popup.style.zIndex = '999999';
-    console.log('ContextReader: Popup positioned at:', { top, left });
   }
 
   hidePopup() {
     if (this.popup && this.popup.parentNode) {
       this.popup.parentNode.removeChild(this.popup);
       this.popup = null;
-      console.log('ContextReader: Popup hidden');
     }
   }
 
   async explain() {
-    console.log('ContextReader: Getting explanation...');
     if (!this.selectedText) {
-      console.log('ContextReader: No text selected for explanation');
+      console.error('ContextReader: No text selected');
       return;
     }
 
-    const iframe = this.popup.querySelector('iframe');
+    const iframe = this.popup?.querySelector('iframe');
     if (!iframe) {
       console.error('ContextReader: Iframe not found');
       return;
     }
 
-    iframe.contentWindow.postMessage({
-      type: 'showResult',
-      text: 'Loading explanation...'
-    }, '*');
+    this.showResult('Loading explanation...');
 
     try {
-      const apiUrl = `${this.API_BASE_URL}/api/explain`;
-      console.log('ContextReader: Making API request to:', apiUrl);
-      console.log('ContextReader: Selected text:', this.selectedText);
-      console.log('ContextReader: Request body:', JSON.stringify({
-        text: this.selectedText,
-        url: window.location.href
-      }, null, 2));
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      console.log('ContextReader: Sending explanation request for text:', this.selectedText);
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          type: 'explain',
           text: this.selectedText,
           url: window.location.href
-        })
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('ContextReader: Chrome runtime error:', chrome.runtime.lastError);
+            reject(chrome.runtime.lastError);
+          } else {
+            console.log('ContextReader: Received response:', response);
+            resolve(response);
+          }
+        });
       });
 
-      console.log('ContextReader: Response status:', response.status);
-      const data = await response.json();
-      console.log('ContextReader: Response data:', data);
-
-      if (data.explanation) {
-        console.log('ContextReader: Got explanation:', data.explanation);
-        this.showResult(data.explanation);
-      } else if (data.error) {
-        console.error('ContextReader: API error:', data.error);
-        this.showResult(`Error: ${data.error}`);
+      if (!response.success) {
+        throw new Error(response.error);
       }
+      
+      if (!response.data.explanation) {
+        throw new Error('No explanation received from API');
+      }
+
+      this.showResult(response.data.explanation);
     } catch (error) {
       console.error('ContextReader: Error getting explanation:', error);
-      this.showResult('Error: Could not get explanation. Check console for details.');
+      this.showResult(`Error: ${error.message}`);
     }
   }
 
   async translate() {
-    console.log('ContextReader: Getting translation...');
-    if (!this.selectedText) return;
+    if (!this.selectedText) {
+      console.error('ContextReader: No text selected');
+      return;
+    }
 
-    const iframe = this.popup.querySelector('iframe');
+    const iframe = this.popup?.querySelector('iframe');
     if (!iframe) {
       console.error('ContextReader: Iframe not found');
       return;
     }
 
-    iframe.contentWindow.postMessage({
-      type: 'showResult',
-      text: 'Loading translation...'
-    }, '*');
+    this.showResult('Loading translation...');
 
     try {
-      console.log('ContextReader: Making API request to:', `${this.API_BASE_URL}/api/translate`);
-      const response = await fetch(`${this.API_BASE_URL}/api/translate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      console.log('ContextReader: Sending translation request for text:', this.selectedText);
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          type: 'translate',
           text: this.selectedText,
           url: window.location.href
-        })
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('ContextReader: Chrome runtime error:', chrome.runtime.lastError);
+            reject(chrome.runtime.lastError);
+          } else {
+            console.log('ContextReader: Received response:', response);
+            resolve(response);
+          }
+        });
       });
 
-      console.log('ContextReader: Translation response status:', response.status);
-      const data = await response.json();
-      console.log('ContextReader: Translation data:', data);
-
-      if (data.translation) {
-        console.log('ContextReader: Got translation:', data.translation);
-        this.showResult(data.translation);
-      } else if (data.error) {
-        console.error('ContextReader: API error:', data.error);
-        this.showResult(`Error: ${data.error}`);
+      if (!response.success) {
+        throw new Error(response.error);
       }
+      
+      if (!response.data.translation) {
+        throw new Error('No translation received from API');
+      }
+
+      this.showResult(response.data.translation);
     } catch (error) {
       console.error('ContextReader: Error getting translation:', error);
-      this.showResult('Error: Could not get translation. Check console for details.');
+      this.showResult(`Error: ${error.message}`);
     }
   }
 
   showResult(text) {
-    if (!this.popup) {
-      console.error('ContextReader: No popup found');
-      return;
-    }
-
-    const iframe = this.popup.querySelector('iframe');
+    const iframe = this.popup?.querySelector('iframe');
     if (!iframe) {
-      console.error('ContextReader: No iframe found');
+      console.error('ContextReader: Iframe not found');
       return;
     }
 
@@ -330,37 +268,38 @@ class ContextReader {
     
     // Check if iframe is loaded
     if (iframe.contentWindow) {
-      // Then send the result to be displayed
-      setTimeout(() => {
-        try {
-          iframe.contentWindow.postMessage({
-            type: 'showResult',
-            text: text
-          }, '*');
-          console.log('ContextReader: Showing result:', text);
-        } catch (error) {
-          console.error('ContextReader: Error sending message to iframe:', error);
-        }
-      }, 100);
+      try {
+        iframe.contentWindow.postMessage({
+          type: 'showResult',
+          text: text
+        }, '*');
+      } catch (error) {
+        console.error('ContextReader: Error sending message to iframe:', error);
+      }
     } else {
       console.error('ContextReader: Iframe content window not ready');
     }
   }
 
   async loadAnnotations() {
-    console.log('ContextReader: Loading annotations...');
-    const stored = localStorage.getItem('contextReaderAnnotations');
-    if (stored) {
-      const annotations = JSON.parse(stored);
-      this.annotations = new Map(Object.entries(annotations));
-      console.log('ContextReader: Loaded annotations:', this.annotations.size);
+    try {
+      const stored = localStorage.getItem('contextReaderAnnotations');
+      if (stored) {
+        const annotations = JSON.parse(stored);
+        this.annotations = new Map(Object.entries(annotations));
+      }
+    } catch (error) {
+      console.error('ContextReader: Error loading annotations:', error);
     }
   }
 
   saveAnnotations() {
-    const annotations = Object.fromEntries(this.annotations);
-    localStorage.setItem('contextReaderAnnotations', JSON.stringify(annotations));
-    console.log('ContextReader: Saved annotations');
+    try {
+      const annotations = Object.fromEntries(this.annotations);
+      localStorage.setItem('contextReaderAnnotations', JSON.stringify(annotations));
+    } catch (error) {
+      console.error('ContextReader: Error saving annotations:', error);
+    }
   }
 }
 

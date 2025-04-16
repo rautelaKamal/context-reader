@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "ContextReader",
   "version": "1.0.0",
+  "development": true,
   "description": "Enhance reading comprehension with AI-powered contextual explanations",
   "permissions": [
     "activeTab",

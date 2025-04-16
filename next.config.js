@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const config = {
   // Enable experimental features
   experimental: {
     appDir: true
@@ -17,4 +17,4 @@ const nextConfig = {
   output: 'standalone'
 }
 
-module.exports = nextConfig
+export default config
