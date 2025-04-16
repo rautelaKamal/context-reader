@@ -22,16 +22,16 @@ class ContextReader {
     this.selectedText = '';
     this.popup = null;
     this.justCreatedPopup = false;
-    this.API_BASE_URL = 'http://localhost:3000';  // Make sure this is set correctly
+    // Get API base URL from environment or default to production
+    this.API_BASE_URL = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3000' 
+      : 'https://context-reader.onrender.com';
     
     // Bind event handlers
     this.handleTextSelection = this.handleTextSelection.bind(this);
     this.handleClick = this.handleClick.bind(this);
     
-    // Add event listeners
-    document.addEventListener('mouseup', this.handleTextSelection);
-    document.addEventListener('click', this.handleClick);
-    
+    // Set up event listeners
     this.setupEventListeners();
     this.loadAnnotations();
     console.log('ContextReader: Initialization complete');
@@ -39,7 +39,9 @@ class ContextReader {
 
   setupEventListeners() {
     console.log('ContextReader: Setting up event listeners...');
-    // Event listeners are already added in the constructor
+    document.addEventListener('mouseup', this.handleTextSelection);
+    document.addEventListener('click', this.handleClick);
+    window.addEventListener('message', this.handleMessage.bind(this));
     console.log('ContextReader: Event listeners setup complete');
   }
 
@@ -312,21 +314,36 @@ class ContextReader {
   }
 
   showResult(text) {
-    if (!this.popup) return;
+    if (!this.popup) {
+      console.error('ContextReader: No popup found');
+      return;
+    }
 
     const iframe = this.popup.querySelector('iframe');
-    if (iframe) {
-      // First increase height to accommodate the result
-      iframe.style.height = '250px';
-      
+    if (!iframe) {
+      console.error('ContextReader: No iframe found');
+      return;
+    }
+
+    // First increase height to accommodate the result
+    iframe.style.height = '250px';
+    
+    // Check if iframe is loaded
+    if (iframe.contentWindow) {
       // Then send the result to be displayed
       setTimeout(() => {
-        iframe.contentWindow.postMessage({
-          type: 'showResult',
-          text: text
-        }, '*');
-        console.log('ContextReader: Showing result:', text);
+        try {
+          iframe.contentWindow.postMessage({
+            type: 'showResult',
+            text: text
+          }, '*');
+          console.log('ContextReader: Showing result:', text);
+        } catch (error) {
+          console.error('ContextReader: Error sending message to iframe:', error);
+        }
       }, 100);
+    } else {
+      console.error('ContextReader: Iframe content window not ready');
     }
   }
 

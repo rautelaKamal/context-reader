@@ -9,7 +9,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:*/*"
+    "http://localhost:*/*",
+    "https://context-reader.onrender.com/*"
   ],
   "background": {
     "service_worker": "background.js",

@@ -1,0 +1,37 @@
+Context Reader - Instant Text Explanations
+
+Short Description:
+Get instant explanations and translations for any text you select on the web.
+
+Detailed Description:
+Context Reader is a powerful Chrome extension that helps you understand complex text with just one click. Simply select any text on a webpage and get instant, AI-powered explanations and translations.
+
+Key Features:
+• Instant Explanations: Get clear, concise explanations of complex text
+• Quick Translations: Translate selected text to your preferred language
+• User-Friendly Interface: Clean, non-intrusive popup that appears only when needed
+• Privacy-Focused: Your data is processed securely and not stored
+• Works Everywhere: Compatible with most websites
+
+Perfect for:
+• Students reading academic papers
+• Professionals working with technical documents
+• Non-native English speakers
+• Anyone who wants to better understand complex content
+
+How to Use:
+1. Select any text on a webpage
+2. Click the "Explain" button in the popup
+3. Get instant, clear explanations
+4. Use the "Translate" button for translations
+
+Privacy & Security:
+• No personal data collection
+• Secure API communication
+• No ads or tracking
+
+Support:
+For support or feedback, visit our GitHub repository: https://github.com/rautelaKamal/context-reader
+
+Version: 1.0.0
+Developer: Kamal Rautela
