@@ -1,0 +1,60 @@
+.context-reader-popup {
+  position: absolute;
+  z-index: 999999;
+  background: transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.popup-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.context-reader-popup button {
+  flex: 1;
+  padding: 8px 16px;
+  border: 2px solid #0056b3;
+  border-radius: 4px;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  text-align: center;
+  position: relative;
+  z-index: 1000000;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto;
+}
+
+.context-reader-popup button:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.context-reader-popup button:active {
+  transform: translateY(0);
+  background: #004494;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.context-reader-result {
+  padding: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  background: #f8f9fa;
+  font-size: 14px;
+  line-height: 1.6;
+  display: none;
+  margin-top: 12px;
+  word-wrap: break-word;
+  color: #333;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}

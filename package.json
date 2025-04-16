@@ -2,26 +2,35 @@
   "name": "context-reader",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "package-extension": "node scripts/package-extension.js"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.4.2",
+    "@huggingface/inference": "^3.7.1",
+    "@prisma/client": "^6.6.0",
+    "next": "15.2.5",
+    "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.2.5"
+    "react-pdf": "^9.2.1"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
+    "archiver": "^7.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.2.5",
-    "@eslint/eslintrc": "^3"
+    "prisma": "^6.6.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

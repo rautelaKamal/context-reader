@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      margin: 0;
+      padding: 12px;
+      width: 250px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    
+    .popup-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    button {
+      flex: 1;
+      padding: 8px 16px;
+      border: 2px solid #0056b3;
+      border-radius: 4px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    
+    button:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+      background: #004494;
+    }
+    
+    .context-reader-result {
+      padding: 12px;
+      border: 1px solid #e8e8e8;
+      border-radius: 6px;
+      background: #f8f9fa;
+      font-size: 14px;
+      line-height: 1.6;
+      display: none;
+      margin-top: 12px;
+      word-wrap: break-word;
+      color: #333;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup-buttons">
+    <button id="explain-btn">Explain</button>
+    <button id="translate-btn">Translate</button>
+  </div>
+  <div class="context-reader-result"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
