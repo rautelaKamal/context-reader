@@ -1,11 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',  // Enable static exports
+  output: 'export',
   images: {
-    unoptimized: true, // Required for static export
+    unoptimized: true,
   },
+  trailingSlash: true,
   basePath: process.env.NODE_ENV === 'production' ? '/context-reader' : '',
   assetPrefix: process.env.NODE_ENV === 'production' ? '/context-reader/' : '',
+  // Disable server-side features for static export
+  experimental: {
+    appDir: true
+  }
 }
 
-export default nextConfig
+module.exports = nextConfig
