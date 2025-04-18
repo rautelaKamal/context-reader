@@ -55,7 +55,7 @@ export async function getTranslation(text: string): Promise<string> {
     }
 
     const response = await hf.translation({
-      model: 'Helsinki-NLP/opus-mt-fr-en',
+      model: 'Helsinki-NLP/opus-mt-ru-en',
       inputs: text
     });
 
