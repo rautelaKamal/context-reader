@@ -184,8 +184,8 @@ class ContextReader {
 
     const resultDiv = this.popup.querySelector('#result');
     if (resultDiv) {
-      resultDiv.textContent = text;
-      resultDiv.style.display = 'block';
+      (resultDiv as HTMLElement).textContent = text;
+      (resultDiv as HTMLElement).style.display = 'block';
     }
   }
 
