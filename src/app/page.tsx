@@ -1,4 +1,4 @@
-import Link from 'next/link'
+// Homepage component
 
 export default function Home() {
   return (
@@ -10,7 +10,7 @@ export default function Home() {
             <span className="block text-blue-600">with ContextReader</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            Get instant AI-powered explanations, translations, and contextual insights for any text you're reading online.
+            Get instant AI-powered explanations, translations, and contextual insights for any text you&apos;re reading online.
           </p>
           <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
             <div className="rounded-md shadow">
@@ -23,12 +23,14 @@ export default function Home() {
               </a>
             </div>
             <div className="mt-3 rounded-md shadow sm:mt-0 sm:ml-3">
-              <Link
-                href="/dashboard"
+              <a
+                href="https://github.com/rautelaKamal/context-reader"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10"
               >
-                View Dashboard
-              </Link>
+                View Source
+              </a>
             </div>
           </div>
         </div>
