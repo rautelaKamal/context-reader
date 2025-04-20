@@ -12,7 +12,20 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (event.data.type === 'showResult') {
       console.log('Popup: Showing result:', event.data.text);
       if (resultDiv) {
-        resultDiv.textContent = event.data.text;
+        // Show error in red if it starts with 'Error:'
+        if (typeof event.data.text === 'string' && event.data.text.startsWith('Error:')) {
+          resultDiv.textContent = event.data.text;
+          resultDiv.style.color = '#c00';
+          resultDiv.style.fontWeight = 'bold';
+        } else if (typeof event.data.text === 'string' && event.data.text.toLowerCase().includes('loading')) {
+          resultDiv.textContent = event.data.text + '...';
+          resultDiv.style.color = '#888';
+          resultDiv.style.fontWeight = 'normal';
+        } else {
+          resultDiv.textContent = event.data.text;
+          resultDiv.style.color = '#1a1a1a';
+          resultDiv.style.fontWeight = '500';
+        }
         resultDiv.style.display = 'block';
       } else {
         console.error('Popup: Result div not found');

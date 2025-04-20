@@ -1,11 +1,7 @@
 // Background script for ContextReader extension
-const manifest = chrome?.runtime?.getManifest();
-const isDev = manifest?.development === true;
-const API_BASE_URL = isDev
-  ? 'http://localhost:3000'
-  : 'https://context-reader.onrender.com';
-console.log('ContextReader background: Using API base URL:', API_BASE_URL, '(isDev:', isDev, ')');
-
+// IMPORTANT: Replace this URL with your actual Vercel deployment URL
+const API_BASE_URL = 'https://context-reader.vercel.app'; // <-- Production Vercel deployment URL
+console.log('ContextReader background: Using API base URL:', API_BASE_URL);
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('ContextReader extension installed');

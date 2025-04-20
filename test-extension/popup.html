@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      width: 300px;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+    }
+    button {
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+    }
+    #result {
+      margin-top: 15px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 50px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .error {
+      color: red;
+    }
+    .success {
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h3>API Test Extension</h3>
+  <p>Test your Vercel API endpoint</p>
+  
+  <textarea id="text-input" rows="3" style="width: 100%" placeholder="Enter text to explain">This is a test sentence for the API.</textarea>
+  
+  <button id="test-api">Test API</button>
+  
+  <div id="result">Results will appear here...</div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
