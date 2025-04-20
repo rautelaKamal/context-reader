@@ -17,7 +17,7 @@ async function packageExtension() {
     }
 
     // Check if extension directory exists
-    const extensionDir = path.join(__dirname, '..', 'src', 'extension');
+    const extensionDir = path.join(__dirname, '..', 'extension');
     if (!fs.existsSync(extensionDir)) {
       throw new Error('Extension directory not found at: ' + extensionDir);
     }
@@ -83,21 +83,16 @@ async function packageExtension() {
       "name": "ContextReader",
       "version": "1.0",
       "description": "Get instant AI-powered explanations and translations for any text you're reading online",
-      "permissions": ["activeTab", "storage"],
+      "permissions": ["activeTab"],
       "host_permissions": [
-        "https://context-reader.vercel.app/*",
-        "http://localhost:3000/*"
+        "https://context-reader.vercel.app/*"
       ],
       "content_scripts": [
         {
           "matches": ["<all_urls>"],
-          "js": ["content.js"],
-          "css": ["content.css"]
+          "js": ["content.js"]
         }
       ],
-      "background": {
-        "service_worker": "background.js"
-      },
       "action": {
         "default_popup": "popup.html",
         "default_icon": {

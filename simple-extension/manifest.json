@@ -3,20 +3,14 @@
   "name": "ContextReader",
   "version": "1.0",
   "description": "Get instant AI-powered explanations and translations for any text you're reading online",
-  "permissions": [
-    "activeTab"
-  ],
+  "permissions": ["activeTab"],
   "host_permissions": [
     "https://context-reader.vercel.app/*"
   ],
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ]
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
     }
   ],
   "action": {

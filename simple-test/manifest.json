@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Simple API Test",
+  "version": "1.0",
+  "description": "Simple extension to test API connectivity",
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "https://context-reader.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

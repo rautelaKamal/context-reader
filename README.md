@@ -1,21 +1,21 @@
 # ContextReader
 
-A powerful browser extension and web application for enhanced reading comprehension.
+A powerful browser extension that provides AI-powered explanations and translations for any text you're reading online.
 
 ## Features
 
-- Text selection and highlighting on any webpage or PDF
-- AI-powered contextual explanations
-- Translation support
-- User authentication and saved annotations
-- Cross-device synchronization
+- **Instant Explanations**: Select any text on a webpage to get an AI-powered explanation that appears right next to your selection
+- **Simple Translations**: Translate selected text with a single click
+- **Contextual Understanding**: The AI provides deep contextual meaning and uses simple English
+- **Non-intrusive UI**: The extension only appears when you need it and stays out of your way
+- **Easy to Use**: Just select text and the explanation panel appears automatically
 
 ## Project Structure
 
-- `/src/app` - Next.js application routes and pages
-- `/src/components` - Reusable React components
-- `/src/extension` - Browser extension source code
-- `/src/lib` - Shared utilities and API handlers
+- `/extension` - Browser extension source code
+- `/public` - Static assets and packaged extension
+- `/pages/api` - API routes for the explanation and translation services
+- `/scripts` - Utility scripts for packaging the extension
 
 ## Getting Started
 
@@ -28,6 +28,17 @@ A powerful browser extension and web application for enhanced reading comprehens
    ```bash
    npm run dev
    ```
+
+3. Package the extension:
+   ```bash
+   npm run package-extension
+   ```
+
+4. Install the extension in Chrome:
+   - Go to `chrome://extensions/`
+   - Enable Developer Mode
+   - Click "Load unpacked"
+   - Select the `extension` folder or use the packaged zip from `public/extension.zip`
 
 3. Build the browser extension:
    ```bash

@@ -131,8 +131,26 @@ class ContextReader {
         <button class="explain-btn" style="background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px;">Explain</button>
         <button class="translate-btn" style="background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px;">Translate</button>
       </div>
-      <div class="context-reader-result" style="margin-top: 10px; padding: 8px; background-color: #f5f5f5; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; line-height: 1.5;"></div>
+      <div class="context-reader-result" style="margin-top: 10px; padding: 8px; background-color: #f5f5f5; border-radius: 4px; max-height: 300px; overflow-y: auto; display: block; line-height: 1.5;">Selected text: "${this.selectedText}"</div>
     `;
+    
+    // Add direct event listeners to the buttons
+    const explainBtn = this.popup.querySelector('.explain-btn');
+    const translateBtn = this.popup.querySelector('.translate-btn');
+    
+    if (explainBtn) {
+      explainBtn.addEventListener('click', () => {
+        console.log('ContextReader: Explain button clicked directly');
+        this.explain();
+      });
+    }
+    
+    if (translateBtn) {
+      translateBtn.addEventListener('click', () => {
+        console.log('ContextReader: Translate button clicked directly');
+        this.translate();
+      });
+    }
 
     document.body.appendChild(this.popup);
     console.log('ContextReader: Popup added to DOM');
@@ -182,18 +200,36 @@ class ContextReader {
     resultDiv.textContent = `Loading explanation from ${this.API_BASE_URL}...`;
 
     try {
+      // Show a message in the result div
+      resultDiv.textContent = `Sending request to ${this.API_BASE_URL}/api/explain...`;
+      
       const apiUrl = `${this.API_BASE_URL}/api/explain`;
       console.log('ContextReader: Making API request to:', apiUrl);
       console.log('ContextReader: Selected text:', this.selectedText);
       
+      // Log the request details
+      console.log('ContextReader: Request details:', {
+        url: apiUrl,
+        method: 'POST',
+        text: this.selectedText,
+        origin: window.location.origin
+      });
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        mode: 'cors',
+        credentials: 'omit',
         body: JSON.stringify({
           text: this.selectedText,
           url: window.location.href
         })
       });
+      
+      console.log('ContextReader: Fetch request completed');
 
       console.log('ContextReader: Response status:', response.status);
       const data = await response.json();
@@ -208,7 +244,27 @@ class ContextReader {
       }
     } catch (error) {
       console.error('ContextReader: Error getting explanation:', error);
-      this.showResult('Error: Could not get explanation. Check console for details.');
+      
+      // Show detailed error information
+      let errorMessage = 'Error: Could not get explanation. ';
+      
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        errorMessage += 'Network error - could not connect to the API server. This might be due to CORS restrictions or the server being unavailable.';
+      } else if (error.name === 'SyntaxError') {
+        errorMessage += 'Received invalid response from the server.';
+      } else {
+        errorMessage += error.message || 'Check console for details.';
+      }
+      
+      this.showResult(errorMessage);
+      
+      // Display the error in the console with more details
+      console.error('ContextReader: Detailed error information:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        apiUrl: this.API_BASE_URL
+      });
     }
   }
 

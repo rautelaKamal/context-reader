@@ -143,112 +143,75 @@ class ContextReader {
   }
 
   async callExplainAPI() {
-    console.log('ContextReader: Getting explanation...');
-    if (!this.selectedText) {
-      console.log('ContextReader: No text selected for explanation');
-      return;
-    }
-
-    const resultDiv = this.popup.querySelector('.context-reader-result');
-    resultDiv.textContent = 'Loading explanation...';
-    resultDiv.style.display = 'block';
-    
-    // Show the result div is visible for debugging
-    console.log('ContextReader: Result div displayed with loading message');
-    console.log('ContextReader: Result div style.display =', resultDiv.style.display);
+    console.log('ContextReader: Calling explain API...');
+    const resultArea = this.popup.querySelector('#result-area');
+    resultArea.style.display = 'block';
+    resultArea.textContent = 'Loading explanation...';
 
     try {
-      const apiUrl = `${this.API_BASE_URL}/api/explain`;
-      console.log('ContextReader: Making API request to:', apiUrl);
-      console.log('ContextReader: Selected text:', this.selectedText);
+      // Make the API call
+      const response = await fetch('https://context-reader.vercel.app/api/explain', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: this.selectedText })
+      });
+
+      console.log('Response status:', response.status);
       
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: this.selectedText,
-          url: window.location.href
-        })
-      });
-
-      console.log('ContextReader: Response status:', response.status);
+      // Parse the response
       const data = await response.json();
-      console.log('ContextReader: Response data:', data);
-
+      console.log('Response data:', data);
+      
+      // Display the result
       if (data.explanation) {
-        console.log('ContextReader: Got explanation:', data.explanation);
-        this.showResult(data.explanation);
+        resultArea.textContent = data.explanation;
       } else if (data.error) {
-        console.error('ContextReader: API error:', data.error);
-        this.showResult(`Error: ${data.error}`);
+        resultArea.textContent = 'Error: ' + data.error;
+      } else {
+        resultArea.textContent = 'Received response but no explanation found';
       }
     } catch (error) {
-      console.error('ContextReader: Error getting explanation:', error);
-      this.showResult('Error: Could not get explanation. Check console for details.');
+      console.error('Error making API call:', error);
+      resultArea.textContent = 'Error: ' + (error.message || 'Failed to make API call');
     }
   }
 
-  async translate() {
-    console.log('ContextReader: Getting translation...');
-    if (!this.selectedText) return;
-
-    const resultDiv = this.popup.querySelector('.context-reader-result');
-    resultDiv.textContent = 'Loading translation...';
-    resultDiv.style.display = 'block';
+  async callTranslateAPI() {
+    console.log('ContextReader: Calling translate API...');
+    const resultArea = this.popup.querySelector('#result-area');
+    resultArea.style.display = 'block';
+    resultArea.textContent = 'Loading translation...';
 
     try {
-      console.log('ContextReader: Making API request to:', `${this.API_BASE_URL}/api/translate`);
-      const response = await fetch(`${this.API_BASE_URL}/api/translate`, {
+      // Make the API call
+      const response = await fetch('https://context-reader.vercel.app/api/translate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: this.selectedText,
-          url: window.location.href
-        })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: this.selectedText })
       });
 
-      console.log('ContextReader: Translation response status:', response.status);
+      console.log('Response status:', response.status);
+      
+      // Parse the response
       const data = await response.json();
-      console.log('ContextReader: Translation data:', data);
-
+      console.log('Response data:', data);
+      
+      // Display the result
       if (data.translation) {
-        console.log('ContextReader: Got translation:', data.translation);
-        this.showResult(data.translation);
+        resultArea.textContent = data.translation;
       } else if (data.error) {
-        console.error('ContextReader: API error:', data.error);
-        this.showResult(`Error: ${data.error}`);
+        resultArea.textContent = 'Error: ' + data.error;
+      } else {
+        resultArea.textContent = 'Received response but no translation found';
       }
     } catch (error) {
-      console.error('ContextReader: Error getting translation:', error);
-      this.showResult('Error: Could not get translation. Check console for details.');
+      console.error('Error making API call:', error);
+      resultArea.textContent = 'Error: ' + (error.message || 'Failed to make API call');
     }
-  }
-
-  showResult(text) {
-    if (!this.popup) return;
-
-    const resultDiv = this.popup.querySelector('.context-reader-result');
-    if (resultDiv) {
-      resultDiv.textContent = text;
-      resultDiv.style.display = 'block';
-      console.log('ContextReader: Showing result:', text);
-    }
-  }
-
-  async loadAnnotations() {
-    console.log('ContextReader: Loading annotations...');
-    const stored = localStorage.getItem('contextReaderAnnotations');
-    if (stored) {
-      const annotations = JSON.parse(stored);
-      this.annotations = new Map(Object.entries(annotations));
-      console.log('ContextReader: Loaded annotations:', this.annotations.size);
-    }
-  }
-
-  saveAnnotations() {
-    const annotations = Object.fromEntries(this.annotations);
-    localStorage.setItem('contextReaderAnnotations', JSON.stringify(annotations));
-    console.log('ContextReader: Saved annotations');
   }
 }
 

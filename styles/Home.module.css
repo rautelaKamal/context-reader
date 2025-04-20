@@ -1,0 +1,138 @@
+.container {
+  min-height: 100vh;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8f9fa;
+}
+
+.main {
+  padding: 5rem 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.footer {
+  width: 100%;
+  height: 100px;
+  border-top: 1px solid #eaeaea;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+}
+
+.title {
+  margin: 0;
+  line-height: 1.15;
+  font-size: 3rem;
+  text-align: center;
+}
+
+.highlight {
+  color: #4285f4;
+}
+
+.description {
+  line-height: 1.5;
+  font-size: 1.5rem;
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.grid {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin-top: 3rem;
+  gap: 2rem;
+}
+
+.card {
+  flex: 1;
+  min-width: 300px;
+  padding: 1.5rem;
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid #eaeaea;
+  border-radius: 10px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  background-color: white;
+}
+
+.downloadCard {
+  flex: 1;
+  min-width: 300px;
+  padding: 1.5rem;
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid #4285f4;
+  border-radius: 10px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(66, 133, 244, 0.1);
+}
+
+.card h2, .downloadCard h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.card p, .downloadCard p {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #666;
+}
+
+.button {
+  display: inline-block;
+  background-color: #4285f4;
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  text-decoration: none;
+  margin: 1.5rem 0;
+  transition: background-color 0.2s;
+}
+
+.button:hover {
+  background-color: #3367d6;
+}
+
+.installInstructions {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.installInstructions ol {
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    flex-direction: column;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+  
+  .description {
+    font-size: 1.2rem;
+  }
+}
