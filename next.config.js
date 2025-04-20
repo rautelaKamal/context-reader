@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const config = {
-  // Enable experimental features
+  // Experimental features
   experimental: {
-    appDir: true
+    // Add any experimental features here if needed
   },
   images: {
     domains: ['localhost'],
