@@ -8,9 +8,9 @@ class ContextReader {
     this.selectedText = '';
     this.popup = null;
     this.justCreatedPopup = false;
-    // Dynamically determine API URL - use current origin if not localhost, otherwise use localhost:3000
-    const currentOrigin = window.location.origin;
-    this.API_BASE_URL = currentOrigin.includes('localhost') ? 'http://localhost:3000' : 'https://context-reader.vercel.app';
+    // Set API URL to Vercel deployment
+    this.API_BASE_URL = 'https://context-reader.vercel.app';
+    console.log('ContextReader: Using API URL:', this.API_BASE_URL);
     
     // Bind event handlers
     this.handleTextSelection = this.handleTextSelection.bind(this);
@@ -111,12 +111,26 @@ class ContextReader {
 
     this.popup = document.createElement('div');
     this.popup.className = 'context-reader-popup';
+    
+    // Add inline styles to ensure visibility
+    this.popup.style.position = 'absolute';
+    this.popup.style.zIndex = '9999';
+    this.popup.style.backgroundColor = 'white';
+    this.popup.style.border = '1px solid #ccc';
+    this.popup.style.borderRadius = '4px';
+    this.popup.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+    this.popup.style.padding = '10px';
+    this.popup.style.width = '300px';
+    this.popup.style.maxWidth = '80vw';
+    this.popup.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    this.popup.style.fontSize = '14px';
+    
     this.popup.innerHTML = `
-      <div class="popup-buttons">
-        <button class="explain-btn">Explain</button>
-        <button class="translate-btn">Translate</button>
+      <div class="popup-buttons" style="display: flex; gap: 8px; margin-bottom: 10px;">
+        <button class="explain-btn" style="background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px;">Explain</button>
+        <button class="translate-btn" style="background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px;">Translate</button>
       </div>
-      <div class="context-reader-result"></div>
+      <div class="context-reader-result" style="margin-top: 10px; padding: 8px; background-color: #f5f5f5; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; line-height: 1.5;"></div>
     `;
 
     document.body.appendChild(this.popup);
@@ -160,6 +174,10 @@ class ContextReader {
     const resultDiv = this.popup.querySelector('.context-reader-result');
     resultDiv.textContent = 'Loading explanation...';
     resultDiv.style.display = 'block';
+    
+    // Show the result div is visible for debugging
+    console.log('ContextReader: Result div displayed with loading message');
+    console.log('ContextReader: Result div style.display =', resultDiv.style.display);
 
     try {
       const apiUrl = `${this.API_BASE_URL}/api/explain`;
