@@ -18,40 +18,45 @@ class ContextReader {
   }
 
   handleTextSelection() {
-    console.log('ContextReader: Mouse up detected');
-    const selection = window.getSelection();
-    const selectedText = selection?.toString().trim();
-    console.log('ContextReader: Selected text:', selectedText);
-    
-    if (!selectedText) {
-      console.log('ContextReader: No text selected');
-      return;
-    }
+    try {
+      console.log('ContextReader: Mouse up detected');
+      const selection = window.getSelection();
+      const selectedText = selection?.toString().trim();
+      console.log('ContextReader: Selected text:', selectedText);
+      
+      if (!selectedText) {
+        console.log('ContextReader: No text selected');
+        return;
+      }
 
-    this.selectedText = selectedText;
-    this.showPopup();
+      this.selectedText = selectedText;
+      this.showPopup();
+    } catch (error) {
+      console.error('ContextReader: Error handling text selection:', error);
+    }
   }
 
   showPopup() {
-    console.log('ContextReader: Creating popup...');
-    if (this.popup) {
-      console.log('ContextReader: Removing existing popup');
-      this.hidePopup();
-    }
+    try {
+      console.log('ContextReader: Creating popup...');
+      if (this.popup) {
+        console.log('ContextReader: Removing existing popup');
+        this.hidePopup();
+      }
 
-    // Create a fixed position popup
-    this.popup = document.createElement('div');
-    this.popup.style.position = 'fixed';
-    this.popup.style.top = '50%';
-    this.popup.style.left = '50%';
-    this.popup.style.transform = 'translate(-50%, -50%)';
-    this.popup.style.zIndex = '2147483647';
-    this.popup.style.backgroundColor = 'white';
-    this.popup.style.padding = '20px';
-    this.popup.style.borderRadius = '8px';
-    this.popup.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-    this.popup.style.width = '320px';
-    this.popup.style.fontFamily = 'Arial, sans-serif';
+      // Create a fixed position popup
+      this.popup = document.createElement('div');
+      this.popup.style.position = 'fixed';
+      this.popup.style.top = '50%';
+      this.popup.style.left = '50%';
+      this.popup.style.transform = 'translate(-50%, -50%)';
+      this.popup.style.zIndex = '2147483647';
+      this.popup.style.backgroundColor = 'white';
+      this.popup.style.padding = '20px';
+      this.popup.style.borderRadius = '8px';
+      this.popup.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+      this.popup.style.width = '320px';
+      this.popup.style.fontFamily = 'Arial, sans-serif';
 
     // Create popup content
     const header = document.createElement('h3');
@@ -132,123 +137,182 @@ class ContextReader {
     // Add to DOM
     document.body.appendChild(this.popup);
     console.log('ContextReader: Popup created and added to DOM');
+    } catch (error) {
+      console.error('ContextReader: Error creating popup:', error);
+      // Reset the popup state to prevent further errors
+      this.popup = null;
+    }
   }
 
   hidePopup() {
-    if (this.popup && this.popup.parentNode) {
-      this.popup.parentNode.removeChild(this.popup);
+    try {
+      if (this.popup && this.popup.parentNode) {
+        this.popup.parentNode.removeChild(this.popup);
+        this.popup = null;
+        console.log('ContextReader: Popup hidden');
+      }
+    } catch (error) {
+      console.error('ContextReader: Error hiding popup:', error);
+      // Reset the popup state to prevent further errors
       this.popup = null;
-      console.log('ContextReader: Popup hidden');
     }
   }
 
   async callExplainAPI() {
-    console.log('ContextReader: Getting explanation...');
-    if (!this.selectedText) {
-      console.log('ContextReader: No text selected for explanation');
-      return;
-    }
-
-    const resultDiv = this.popup.querySelector('.context-reader-result');
-    resultDiv.textContent = 'Loading explanation...';
-    resultDiv.style.display = 'block';
-    
-    // Show the result div is visible for debugging
-    console.log('ContextReader: Result div displayed with loading message');
-    console.log('ContextReader: Result div style.display =', resultDiv.style.display);
-
     try {
-      const apiUrl = `${this.API_BASE_URL}/api/explain`;
-      console.log('ContextReader: Making API request to:', apiUrl);
-      console.log('ContextReader: Selected text:', this.selectedText);
+      console.log('ContextReader: Getting explanation...');
+      if (!this.selectedText) {
+        console.log('ContextReader: No text selected for explanation');
+        return;
+      }
       
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: this.selectedText,
-          url: window.location.href
-        })
-      });
+      if (!this.popup) {
+        console.error('ContextReader: Popup is not available');
+        return;
+      }
 
-      console.log('ContextReader: Response status:', response.status);
-      const data = await response.json();
-      console.log('ContextReader: Response data:', data);
+      const resultDiv = this.popup.querySelector('.context-reader-result');
+      if (!resultDiv) {
+        console.error('ContextReader: Result div not found');
+        return;
+      }
+      
+      resultDiv.textContent = 'Loading explanation...';
+      resultDiv.style.display = 'block';
+      
+      // Show the result div is visible for debugging
+      console.log('ContextReader: Result div displayed with loading message');
+      console.log('ContextReader: Result div style.display =', resultDiv.style.display);
 
-      if (data.explanation) {
-        console.log('ContextReader: Got explanation:', data.explanation);
-        this.showResult(data.explanation);
-      } else if (data.error) {
-        console.error('ContextReader: API error:', data.error);
-        this.showResult(`Error: ${data.error}`);
+      try {
+        const apiUrl = `${this.API_BASE_URL}/api/explain`;
+        console.log('ContextReader: Making API request to:', apiUrl);
+        console.log('ContextReader: Selected text:', this.selectedText);
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: this.selectedText,
+            url: window.location.href
+          })
+        });
+
+        console.log('ContextReader: Response status:', response.status);
+        const data = await response.json();
+        console.log('ContextReader: Response data:', data);
+
+        if (data.explanation) {
+          console.log('ContextReader: Got explanation:', data.explanation);
+          this.showResult(data.explanation);
+        } else if (data.error) {
+          console.error('ContextReader: API error:', data.error);
+          this.showResult(`Error: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('ContextReader: Error getting explanation:', error);
+        this.showResult('Error: Could not get explanation. Check console for details.');
       }
     } catch (error) {
-      console.error('ContextReader: Error getting explanation:', error);
-      this.showResult('Error: Could not get explanation. Check console for details.');
+      console.error('ContextReader: Extension context error in callExplainAPI:', error);
+      // If we get here, the extension context is likely invalidated
     }
   }
 
   async translate() {
-    console.log('ContextReader: Getting translation...');
-    if (!this.selectedText) return;
-
-    const resultDiv = this.popup.querySelector('.context-reader-result');
-    resultDiv.textContent = 'Loading translation...';
-    resultDiv.style.display = 'block';
-
     try {
-      console.log('ContextReader: Making API request to:', `${this.API_BASE_URL}/api/translate`);
-      const response = await fetch(`${this.API_BASE_URL}/api/translate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: this.selectedText,
-          url: window.location.href
-        })
-      });
+      console.log('ContextReader: Getting translation...');
+      if (!this.selectedText) return;
+      
+      if (!this.popup) {
+        console.error('ContextReader: Popup is not available');
+        return;
+      }
 
-      console.log('ContextReader: Translation response status:', response.status);
-      const data = await response.json();
-      console.log('ContextReader: Translation data:', data);
+      const resultDiv = this.popup.querySelector('.context-reader-result');
+      if (!resultDiv) {
+        console.error('ContextReader: Result div not found');
+        return;
+      }
+      
+      resultDiv.textContent = 'Loading translation...';
+      resultDiv.style.display = 'block';
 
-      if (data.translation) {
-        console.log('ContextReader: Got translation:', data.translation);
-        this.showResult(data.translation);
-      } else if (data.error) {
-        console.error('ContextReader: API error:', data.error);
-        this.showResult(`Error: ${data.error}`);
+      try {
+        console.log('ContextReader: Making API request to:', `${this.API_BASE_URL}/api/translate`);
+        const response = await fetch(`${this.API_BASE_URL}/api/translate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: this.selectedText,
+            url: window.location.href
+          })
+        });
+
+        console.log('ContextReader: Translation response status:', response.status);
+        const data = await response.json();
+        console.log('ContextReader: Translation data:', data);
+
+        if (data.translation) {
+          console.log('ContextReader: Got translation:', data.translation);
+          this.showResult(data.translation);
+        } else if (data.error) {
+          console.error('ContextReader: API error:', data.error);
+          this.showResult(`Error: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('ContextReader: Error getting translation:', error);
+        this.showResult('Error: Could not get translation. Check console for details.');
       }
     } catch (error) {
-      console.error('ContextReader: Error getting translation:', error);
-      this.showResult('Error: Could not get translation. Check console for details.');
+      console.error('ContextReader: Extension context error in translate:', error);
+      // If we get here, the extension context is likely invalidated
     }
   }
 
   showResult(text) {
-    if (!this.popup) return;
-
-    const resultDiv = this.popup.querySelector('.context-reader-result');
-    if (resultDiv) {
+    try {
+      if (!this.popup) {
+        console.error('ContextReader: Popup is not available');
+        return;
+      }
+      
+      const resultDiv = this.popup.querySelector('.context-reader-result');
+      if (!resultDiv) {
+        console.error('ContextReader: Result div not found');
+        return;
+      }
+      
       resultDiv.textContent = text;
       resultDiv.style.display = 'block';
       console.log('ContextReader: Showing result:', text);
+    } catch (error) {
+      console.error('ContextReader: Error showing result:', error);
     }
   }
 
   async loadAnnotations() {
-    console.log('ContextReader: Loading annotations...');
-    const stored = localStorage.getItem('contextReaderAnnotations');
-    if (stored) {
-      const annotations = JSON.parse(stored);
-      this.annotations = new Map(Object.entries(annotations));
-      console.log('ContextReader: Loaded annotations:', this.annotations.size);
+    try {
+      console.log('ContextReader: Loading annotations...');
+      const stored = localStorage.getItem('contextReaderAnnotations');
+      if (stored) {
+        const annotations = JSON.parse(stored);
+        this.annotations = new Map(Object.entries(annotations));
+        console.log('ContextReader: Loaded annotations:', this.annotations.size);
+      }
+    } catch (error) {
+      console.error('ContextReader: Error loading annotations:', error);
     }
   }
 
   saveAnnotations() {
-    const annotations = Object.fromEntries(this.annotations);
-    localStorage.setItem('contextReaderAnnotations', JSON.stringify(annotations));
-    console.log('ContextReader: Saved annotations');
+    try {
+      const annotations = Object.fromEntries(this.annotations);
+      localStorage.setItem('contextReaderAnnotations', JSON.stringify(annotations));
+      console.log('ContextReader: Saved annotations');
+    } catch (error) {
+      console.error('ContextReader: Error saving annotations:', error);
+    }
   }
 }
 

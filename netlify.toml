@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build && npm run package-extension"
+  publish = "out"
+  
+[build.environment]
+  NEXT_PUBLIC_API_URL = "https://context-reader.netlify.app"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
