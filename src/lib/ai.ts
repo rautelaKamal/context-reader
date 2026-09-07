@@ -1,67 +1,81 @@
-import { HfInference } from '@huggingface/inference';
+import { getProvider, ProviderError } from './provider';
+import { buildMessages, parseExplanation, type Explanation } from './prompts';
+import type { ModeId } from './modes';
+import type { PassageContext } from './context';
 
-const hf = new HfInference(process.env.HUGGING_FACE_API_KEY);
+export type { Explanation };
 
-export async function getExplanation(text: string): Promise<string> {
-  try {
-    if (!process.env.HUGGING_FACE_API_KEY) {
-      throw new Error('HUGGING_FACE_API_KEY is not set');
-    }
-
-    // Using T5 model for better explanations
-    const prompt = `Context: The following is a piece of text that needs to be explained in simple terms.
-
-Text: "${text}"
-
-Provide a simple and clear explanation that:
-- Explains what this means in everyday language
-- Highlights why it matters
-- Gives a real-world example if relevant
-
-Keep the tone conversational and friendly, like explaining to a friend. Focus on helping the reader understand the key point.`;
-    
-    const response = await hf.textGeneration({
-      model: 'google/flan-t5-large',
-      inputs: prompt,
-      parameters: {
-        max_length: 200,
-        min_length: 50,
-        temperature: 0.3,
-        top_p: 0.8,
-        do_sample: true,
-        no_repeat_ngram_size: 2,
-        repetition_penalty: 1.5
-      }
-    });
-
-    // Clean up the response
-    const explanation = response.generated_text
-      .trim()
-      .replace(/^Explanation:\s*/i, '')  // Remove any "Explanation:" prefix
-      .replace(/\n{2,}/g, '\n')          // Replace multiple newlines with single
-      .replace(/\s{2,}/g, ' ');          // Replace multiple spaces with single
-
-    return explanation;
-  } catch (error) {
-    console.error('Error in getExplanation:', error);
-    throw error;
-  }
+export interface ExplainResult extends Explanation {
+  mode: ModeId;
 }
 
-export async function getTranslation(text: string): Promise<string> {
-  try {
-    if (!process.env.HUGGING_FACE_API_KEY) {
-      throw new Error('HUGGING_FACE_API_KEY is not set');
+export async function explain(context: PassageContext, mode: ModeId): Promise<ExplainResult> {
+  const provider = getProvider();
+  const messages = buildMessages(mode, context);
+
+  const raw = await provider.chat(messages, {
+    // Line-by-line output has one section per line, so it needs the headroom.
+    maxTokens: mode === 'lines' ? 1200 : 700,
+    temperature: 0.3,
+  });
+
+  const parsed = parseExplanation(raw);
+
+  if (!parsed) {
+    // The model answered but not in JSON. Its prose is still useful, so show
+    // it rather than failing the request outright.
+    const fallback = raw.trim();
+    if (!fallback) {
+      throw new ProviderError('Model returned an empty response', 502);
     }
-
-    const response = await hf.translation({
-      model: 'Helsinki-NLP/opus-mt-ru-en',
-      inputs: text
-    });
-
-    return `Translation: "${response.translation_text}"\n\nOriginal text: "${text}"`;
-  } catch (error) {
-    console.error('Error in getTranslation:', error);
-    throw error;
+    return { mode, summary: fallback, sections: [] };
   }
+
+  return { mode, ...parsed };
+}
+
+export interface TranslationResult {
+  translation: string;
+  detectedLanguage?: string;
+}
+
+/**
+ * Translation used to be pinned to a Russian-to-English model, which quietly
+ * produced nonsense for every other language. The instruction-tuned model
+ * handles detection and translation in one call.
+ */
+export async function translate(context: PassageContext): Promise<TranslationResult> {
+  const provider = getProvider();
+
+  const raw = await provider.chat(
+    [
+      {
+        role: 'system',
+        content: `Translate the passage into natural English.
+
+- Preserve line breaks and stanza structure exactly.
+- Translate meaning, not words: idiom becomes idiom.
+- If the passage is already English, return it unchanged.
+- Reply with JSON only: {"detectedLanguage": "<language name>", "translation": "<the English>"}`,
+      },
+      { role: 'user', content: context.selection },
+    ],
+    { maxTokens: 900, temperature: 0.2 },
+  );
+
+  try {
+    const text = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    const parsed = JSON.parse(text) as { translation?: unknown; detectedLanguage?: unknown };
+    if (typeof parsed.translation === 'string' && parsed.translation.trim()) {
+      return {
+        translation: parsed.translation.trim(),
+        detectedLanguage:
+          typeof parsed.detectedLanguage === 'string' ? parsed.detectedLanguage : undefined,
+      };
+    }
+  } catch {
+    // fall through to treating the reply as plain text
+  }
+
+  return { translation: raw.trim() };
 }

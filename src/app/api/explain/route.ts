@@ -1,77 +1,80 @@
 import { NextResponse } from 'next/server';
-import { getExplanation } from '@/lib/ai';
+import { explain } from '@/lib/ai';
 import { corsHeaders } from '@/lib/cors';
+import { parseContext, ValidationError } from '@/lib/context';
+import { detectMode, isModeId, MODES } from '@/lib/modes';
+import { hasProviderCredentials, ProviderError } from '@/lib/provider';
+import { checkRateLimit, clientKey } from '@/lib/ratelimit';
 
 export const runtime = 'edge';
 
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: Request) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
+}
+
+export async function GET(request: Request) {
+  // Lets the extension render mode chips without hardcoding the list.
+  return NextResponse.json({ modes: Object.values(MODES) }, { headers: corsHeaders(request) });
 }
 
 export async function POST(request: Request) {
+  const headers = corsHeaders(request);
+
+  if (!hasProviderCredentials()) {
+    return NextResponse.json(
+      { error: 'The explanation service is not configured.' },
+      { status: 503, headers },
+    );
+  }
+
+  const limit = checkRateLimit(clientKey(request));
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: 'Too many requests. Give it a moment and try again.' },
+      {
+        status: 429,
+        headers: { ...headers, 'Retry-After': String(limit.retryAfterSeconds) },
+      },
+    );
+  }
+
+  let body: unknown;
   try {
-    // Check API key first
-    if (!process.env.HUGGING_FACE_API_KEY) {
-      console.error('HUGGING_FACE_API_KEY is not set');
-      return NextResponse.json(
-        { error: 'API configuration error. Please contact support.' },
-        { status: 500, headers: corsHeaders }
-      );
-    }
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400, headers });
+  }
 
-    const { text } = await request.json();
+  try {
+    const context = parseContext(body);
+    const requested = (body as Record<string, unknown>).mode;
+    const mode = isModeId(requested)
+      ? requested
+      : detectMode({ selection: context.selection, url: context.url });
 
-    if (!text) {
-      console.error('Text is required but was not provided');
-      return NextResponse.json(
-        { error: 'Text is required' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    const result = await explain(context, mode);
 
-    if (text.length > 1000) {
-      console.error('Text is too long:', text.length);
-      return NextResponse.json(
-        { error: 'Text is too long. Please select a shorter passage.' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    console.log('Explaining text:', text);
-    const explanation = await getExplanation(text);
-    console.log('Got explanation:', explanation);
-
-    return NextResponse.json(
-      { explanation },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json(result, {
+      headers: { ...headers, 'X-RateLimit-Remaining': String(limit.remaining) },
+    });
   } catch (error) {
-    console.error('Error in explain API:', error);
-    if (error instanceof Error) {
-      console.error('Error details:', error.message);
-      console.error('Error stack:', error.stack);
-      
-      // Handle specific error types
-      if (error.message.includes('HUGGING_FACE_API_KEY')) {
-        return NextResponse.json(
-          { error: 'API configuration error. Please contact support.' },
-          { status: 500, headers: corsHeaders }
-        );
-      } else if (error.message.includes('rate limit')) {
-        return NextResponse.json(
-          { error: 'Too many requests. Please try again later.' },
-          { status: 429, headers: corsHeaders }
-        );
-      }
-      
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400, headers });
+    }
+    if (error instanceof ProviderError) {
+      const status = error.status === 429 ? 429 : 502;
       return NextResponse.json(
-        { error: 'Failed to get explanation. Please try again.' },
-        { status: 500, headers: corsHeaders }
+        {
+          error:
+            status === 429
+              ? 'The model is busy right now. Try again shortly.'
+              : 'Could not get an explanation. Try again.',
+        },
+        { status, headers },
       );
     }
-    return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again.' },
-      { status: 500, headers: corsHeaders }
-    );
+
+    console.error('explain failed:', error);
+    return NextResponse.json({ error: 'Something went wrong.' }, { status: 500, headers });
   }
 }

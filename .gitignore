@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local db
+prisma/*.db
+prisma/*.db-journal
+
+# generated extension bundles
+public/extension.zip
+dist-extension/
+.test-build/
+
+# keep the example, ignore real env files
+!.env.example

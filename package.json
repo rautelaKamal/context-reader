@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "package-extension": "node scripts/package-extension.js",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "build:extension": "node scripts/package-extension.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test.mjs"
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",
