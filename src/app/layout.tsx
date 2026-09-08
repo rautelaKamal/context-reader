@@ -1,33 +1,32 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Literata, IBM_Plex_Sans } from 'next/font/google';
+import './globals.css';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Literata was drawn for reading books on screens, which is the whole subject
+// of this page. Plex Sans carries the interface without competing with it.
+const literata = Literata({
+  variable: '--font-reading',
+  subsets: ['latin'],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const plex = IBM_Plex_Sans({
+  variable: '--font-ui',
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "ContextReader",
-  description: "Enhance reading comprehension with AI-powered contextual explanations",
+  title: 'ContextReader — what the writer actually means',
+  description:
+    'Select a passage that lost you. ContextReader reads it in context and tells you what the writer is actually saying.',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning
-      >
+      <body className={`${literata.variable} ${plex.variable}`} suppressHydrationWarning>
         {children}
       </body>
     </html>

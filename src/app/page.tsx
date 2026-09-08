@@ -1,89 +1,109 @@
-// Homepage component
+import Link from 'next/link';
+
+const REPO = 'https://github.com/rautelaKamal/context-reader';
+
+/** The lenses, in the order the extension offers them. */
+const LENSES = [
+  ['Plain meaning', 'The same thing said in ordinary English.'],
+  ["What's the point?", "The writer's position, what they are arguing against, and their tone — including irony, which is easy to read straight."],
+  ['Line by line', 'Verse worked through one line at a time, each line quoted as it stands.'],
+  ['How it works', 'Word choice, sound, where the line breaks, and words doing two jobs at once.'],
+  ['The jargon', 'Technical terms defined in the sense this particular text is using them.'],
+];
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
-            <span className="block">Understand Everything You Read</span>
-            <span className="block text-blue-600">with ContextReader</span>
-          </h1>
-          <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            Get instant AI-powered explanations, translations, and contextual insights for any text you&apos;re reading online.
-          </p>
-          <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
-            <div className="rounded-md shadow">
-              <a
-                href="/api/extension"
-                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10"
-                download="context-reader-extension.zip"
-              >
-                Download Extension
-              </a>
-            </div>
-            <div className="mt-3 rounded-md shadow sm:mt-0 sm:ml-3">
-              <a
-                href="https://github.com/rautelaKamal/context-reader"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10"
-              >
-                View Source
-              </a>
-            </div>
+    <>
+      <header className="bar">
+        <span className="wordmark">ContextReader</span>
+        <a href={REPO} target="_blank" rel="noopener noreferrer">Source</a>
+        <a href="/api/extension" download>Download</a>
+      </header>
+
+      <main className="page">
+        <h1 className="lede">Some sentences stop you even though you know every word.</h1>
+        <p className="standfirst">
+          An editorial whose argument you cannot quite pin down. A line of Shakespeare. A paragraph
+          in a paper outside your field. Select it, and ContextReader tells you what the writer is
+          actually saying.
+        </p>
+
+        <div className="demo">
+          <div className="passage">
+            <p>
+              If the recent acrimony over devolution is any indication,{' '}
+              <mark>
+                the Centre would do well to disabuse itself of the notion that federal comity is a
+                favour it bestows
+              </mark>{' '}
+              upon the States rather than an obligation the Constitution imposes.
+            </p>
+            <p className="source">A newspaper editorial, selected mid-sentence.</p>
           </div>
+
+          <aside className="note">
+            <h2>Their position</h2>
+            <p>
+              The central government must stop treating cooperation with the states as a gift it
+              chooses to give, and recognise it as a constitutional duty.
+            </p>
+            <h2>Responding to</h2>
+            <p>
+              Southern states are disputing how tax revenue is shared, arguing they are penalised
+              for having controlled their populations.
+            </p>
+            <h2>Tone</h2>
+            <p className="field">
+              Stern and corrective. &ldquo;Would do well to disabuse itself&rdquo; is a warning
+              dressed as advice.
+            </p>
+          </aside>
         </div>
 
-        <div className="mt-20">
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
-            Key Features
-          </h2>
-          <div className="mt-10">
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  title: 'Smart Highlighting',
-                  description: 'Select any text on any webpage to get instant explanations'
-                },
-                {
-                  title: 'AI-Powered Insights',
-                  description: 'Get contextual explanations powered by advanced AI'
-                },
-                {
-                  title: 'Translation Support',
-                  description: 'Instantly translate selected text to your preferred language'
-                },
-                {
-                  title: 'Save & Sync',
-                  description: 'Access your saved annotations across all your devices'
-                },
-                {
-                  title: 'PDF Support',
-                  description: 'Works seamlessly with PDF documents in your browser'
-                },
-                {
-                  title: 'Privacy First',
-                  description: 'Your data is encrypted and secure'
-                }
-              ].map((feature) => (
-                <div key={feature.title} className="pt-6">
-                  <div className="flow-root bg-gray-50 rounded-lg px-6 pb-8">
-                    <div className="-mt-6">
-                      <h3 className="mt-8 text-lg font-medium text-gray-900 tracking-tight">
-                        {feature.title}
-                      </h3>
-                      <p className="mt-5 text-base text-gray-500">
-                        {feature.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="actions">
+          <a className="install" href="/api/extension" download>Add to Chrome</a>
+          <span className="terms">Free. 30 explanations a day, resetting at midnight.</span>
         </div>
-      </div>
-    </main>
-  )
+
+        <section className="section">
+          <h2 className="section-lede">
+            A sonnet and a transformer paper need different things said about them.
+          </h2>
+          <dl className="lenses section-body">
+            {LENSES.map(([name, what]) => (
+              <div className="lens" key={name}>
+                <dt>{name}</dt>
+                <dd>{what}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="section">
+          <h2 className="section-lede">It reads the paragraph, not just the words you picked.</h2>
+          <div className="section-body">
+            <p className="section-note">
+              You cannot say what a line of verse means from the line alone, and you cannot explain
+              what an editorial argues against without the sentences that set it up. So the passage
+              arrives with its surroundings, and the part you chose marked inside them.
+            </p>
+            <p className="context">
+            <span className="dim">The decision to defer the census has been defended on
+            administrative grounds.</span>{' '}
+            <span className="guillemet">«</span>But the argument wears thin in its fourth
+            year.<span className="guillemet">»</span>{' '}
+            <span className="dim">Every month of delay compounds an already serious
+              deficit.</span>
+            </p>
+          </div>
+        </section>
+
+        <footer className="foot">
+          <span>Built by Kamal Singh Rautela</span>
+          <a href={REPO} target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+          <Link href="/test">Passages to try it on</Link>
+        </footer>
+      </main>
+    </>
+  );
 }
