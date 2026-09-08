@@ -1,6 +1,6 @@
 [
   {
-    "name": "The Hindu editorial \u2014 Nepal flood (browser-captured)",
+    "name": "ARTICLE \u00b7 The Hindu \u2014 Nepal flood",
     "localFile": "/private/tmp/claude-501/-Users-kamalrautela-Desktop-Draw-App/d289992c-c756-43e4-a8b8-a66bed1c6925/scratchpad/corpus/hindu-nepal.json",
     "title": "Danger from above: On the Nepal flood",
     "site": "thehindu.com",
@@ -8,42 +8,152 @@
     "take": 1
   },
   {
-    "name": "Indian Express \u2014 conscious AI",
+    "name": "ARTICLE \u00b7 Indian Express \u2014 conscious AI",
     "site": "indianexpress.com",
     "title": "Conscious AI and the ethics of a machine that feels",
     "url": "https://indianexpress.com/article/opinion/editorials/conscious-ai-and-the-ethics-of-a-machine-that-feels-10867361/",
-    "take": 2
+    "take": 1
   },
   {
-    "name": "Indian Express \u2014 economy",
+    "name": "ARTICLE \u00b7 Indian Express \u2014 economy",
     "site": "indianexpress.com",
-    "title": "Economy weathers a storm but more turbulence lies ahead",
+    "title": "Economy weathers a storm",
     "url": "https://indianexpress.com/article/opinion/editorials/economy-weathers-a-storm-but-more-turbulence-lies-ahead-10863766/",
+    "take": 1
+  },
+  {
+    "name": "AI PAPER \u00b7 Attention Is All You Need",
+    "site": "arxiv.org",
+    "title": "Attention Is All You Need",
+    "mode": "jargon",
+    "url": "https://arxiv.org/abs/1706.03762",
+    "tags": [
+      "blockquote"
+    ],
+    "minLength": 300,
+    "maxLength": 3000,
+    "take": 1
+  },
+  {
+    "name": "AI PAPER \u00b7 BERT",
+    "site": "arxiv.org",
+    "title": "BERT: Pre-training of Deep Bidirectional Transformers",
+    "mode": "jargon",
+    "url": "https://arxiv.org/abs/1810.04805",
+    "tags": [
+      "blockquote"
+    ],
+    "minLength": 300,
+    "maxLength": 3000,
+    "take": 1
+  },
+  {
+    "name": "AI PAPER \u00b7 GPT-3",
+    "site": "arxiv.org",
+    "title": "Language Models are Few-Shot Learners",
+    "mode": "jargon",
+    "url": "https://arxiv.org/abs/2005.14165",
+    "tags": [
+      "blockquote"
+    ],
+    "minLength": 300,
+    "maxLength": 3000,
+    "take": 1
+  },
+  {
+    "name": "COMEDY \u00b7 Jerome \u2014 Three Men in a Boat",
+    "site": "gutenberg.org",
+    "title": "Three Men in a Boat",
+    "url": "https://www.gutenberg.org/cache/epub/308/pg308.txt",
+    "plainText": true,
+    "startAt": "There were four of us",
     "take": 2
   },
   {
-    "name": "Indian Express \u2014 Delhi building collapse",
-    "site": "indianexpress.com",
-    "title": "Delhi building collapse and student safety",
-    "url": "https://indianexpress.com/article/opinion/editorials/delhi-satya-niketan-building-collapse-student-safety-10867627/",
+    "name": "COMEDY \u00b7 Wodehouse \u2014 My Man Jeeves",
+    "site": "gutenberg.org",
+    "title": "My Man Jeeves",
+    "url": "https://www.gutenberg.org/cache/epub/8164/pg8164.txt",
+    "plainText": true,
+    "startAt": "Jeeves",
     "take": 2
   },
   {
-    "name": "Austen \u2014 Pride and Prejudice",
+    "name": "COMEDY \u00b7 Carroll \u2014 Alice in Wonderland",
+    "site": "gutenberg.org",
+    "title": "Alice's Adventures in Wonderland",
+    "url": "https://www.gutenberg.org/cache/epub/11/pg11.txt",
+    "plainText": true,
+    "startAt": "Alice was beginning to get very tired",
+    "take": 1
+  },
+  {
+    "name": "NOVEL \u00b7 Melville \u2014 Moby-Dick",
+    "site": "gutenberg.org",
+    "title": "Moby-Dick",
+    "url": "https://www.gutenberg.org/cache/epub/2701/pg2701.txt",
+    "plainText": true,
+    "startAt": "Call me Ishmael",
+    "take": 2
+  },
+  {
+    "name": "NOVEL \u00b7 Dickens \u2014 Bleak House",
+    "site": "gutenberg.org",
+    "title": "Bleak House",
+    "url": "https://www.gutenberg.org/cache/epub/1023/pg1023.txt",
+    "plainText": true,
+    "startAt": "London. Michaelmas Term",
+    "take": 2
+  },
+  {
+    "name": "NOVEL \u00b7 Kafka \u2014 Metamorphosis",
+    "site": "gutenberg.org",
+    "title": "The Metamorphosis",
+    "url": "https://www.gutenberg.org/cache/epub/5200/pg5200.txt",
+    "plainText": true,
+    "startAt": "One morning, when Gregor Samsa",
+    "take": 1
+  },
+  {
+    "name": "NOVEL \u00b7 Austen \u2014 Pride and Prejudice",
     "site": "gutenberg.org",
     "title": "Pride and Prejudice",
     "url": "https://www.gutenberg.org/cache/epub/1342/pg1342.txt",
     "plainText": true,
     "startAt": "It is a truth universally acknowledged",
+    "take": 1
+  },
+  {
+    "name": "POEM \u00b7 Blake \u2014 Songs of Innocence and Experience",
+    "site": "gutenberg.org",
+    "title": "Songs of Innocence and of Experience",
+    "url": "https://www.gutenberg.org/cache/epub/1934/pg1934.txt",
+    "plainText": true,
+    "startAt": "Tyger Tyger",
+    "verse": true,
+    "minLength": 110,
+    "maxLength": 700,
     "take": 2
   },
   {
-    "name": "Ibsen \u2014 A Doll's House",
+    "name": "POEM \u00b7 Whitman \u2014 Leaves of Grass",
+    "site": "gutenberg.org",
+    "title": "Leaves of Grass",
+    "url": "https://www.gutenberg.org/cache/epub/1322/pg1322.txt",
+    "plainText": true,
+    "startAt": "I celebrate myself",
+    "verse": true,
+    "minLength": 110,
+    "maxLength": 700,
+    "take": 1
+  },
+  {
+    "name": "DRAMA \u00b7 Ibsen \u2014 A Doll's House",
     "site": "gutenberg.org",
     "title": "A Doll's House",
     "url": "https://www.gutenberg.org/cache/epub/2542/pg2542.txt",
     "plainText": true,
     "startAt": "HELMER",
-    "take": 2
+    "take": 1
   }
 ]

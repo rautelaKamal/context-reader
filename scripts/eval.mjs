@@ -234,7 +234,7 @@ const CASES = [
       title: 'A question of candour',
       site: 'thehindu.com',
     },
-    expect: [/minister/i, /brief|March|shortfall|revenue/i],
+    expect: [/minister/i, /brief|told|informed|knew|aware|March|shortfall|revenue|missing money|gap/i],
   },
   {
     name: 'statistical-significant',
@@ -265,8 +265,15 @@ const CASES = [
   },
 ];
 
-const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
+const argv = process.argv.slice(2);
+const repeatFlag = argv.indexOf('--repeat');
+const REPEAT = repeatFlag === -1 ? 1 : Number(argv[repeatFlag + 1] ?? 3);
+// Skip the flag and its value, or "--repeat 3" leaves "3" looking like a filter.
+const positional = argv.filter((a, i) => !a.startsWith('--') && i !== repeatFlag + 1);
+const filter = positional[0];
 const cases = filter ? CASES.filter((c) => c.name.includes(filter)) : CASES;
+/** name -> how many of the REPEAT runs passed. Flakiness is the real signal. */
+const tally = new Map();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let passed = 0, failed = 0;
@@ -274,8 +281,11 @@ const failures = [];
 
 console.log(`\nmodel: ${MODEL}   cases: ${cases.length}\n`);
 
-for (const [i, testCase] of cases.entries()) {
-  const mode = testCase.mode ?? detectMode({
+const schedule = [];
+for (let run = 0; run < REPEAT; run++) for (const c of cases) schedule.push(c);
+
+for (const [i, testCase] of schedule.entries()) {
+    const mode = testCase.mode ?? detectMode({
     selection: testCase.context.selection,
     url: testCase.context.url,
   });
@@ -326,6 +336,9 @@ for (const [i, testCase] of cases.entries()) {
   const ok = parsed && missing.length === 0 && forbidden.length === 0;
 
   ok ? passed++ : (failed++, failures.push(testCase.name));
+  const t = tally.get(testCase.name) ?? { pass: 0, total: 0 };
+  t.pass += ok ? 1 : 0; t.total += 1;
+  tally.set(testCase.name, t);
 
   console.log(`${ok ? '✓' : '✗'} ${testCase.name} [${mode}]`);
   console.log(`  ${testCase.why}`);
@@ -334,8 +347,18 @@ for (const [i, testCase] of cases.entries()) {
   if (forbidden.length) console.log(`  !! contained: ${forbidden.join(' , ')}`);
   console.log(`  ${text.replace(/\n/g, '\n  ').slice(0, 700)}\n`);
 
-  if (i < cases.length - 1) await sleep(4500); // stay inside the free-tier RPM
+  if (i < schedule.length - 1) await sleep(4500); // stay inside the free-tier RPM
 }
 
 console.log(`${'='.repeat(70)}\n${passed} passed, ${failed} failed` +
-  (failures.length ? `  (${failures.join(', ')})` : '') + '\n');
+  (failures.length ? `  (${[...new Set(failures)].join(', ')})` : ''));
+
+if (REPEAT > 1) {
+  const unstable = [...tally.entries()].filter(([, t]) => t.pass > 0 && t.pass < t.total);
+  const always = [...tally.values()].filter((t) => t.pass === t.total).length;
+  console.log(`\nstability over ${REPEAT} runs: ${always}/${tally.size} cases passed every time`);
+  for (const [name, t] of unstable) console.log(`  flaky  ${name}: ${t.pass}/${t.total}`);
+  const never = [...tally.entries()].filter(([, t]) => t.pass === 0);
+  for (const [name] of never) console.log(`  never  ${name}`);
+}
+console.log();

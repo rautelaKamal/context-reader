@@ -122,12 +122,19 @@ printed output is what you actually judge. It also covers irony, litotes,
 an opposing view quoted in order to be rejected, and legal and statistical
 false friends.
 
-`npm run corpus` runs the same pipeline over paragraphs pulled from real
-articles — Indian Express editorials, Gutenberg literature, a browser-captured
-Hindu editorial. There is no ground truth on unlabelled prose, so it scores
+`npm run eval -- --repeat 3` runs every case three times and reports which ones
+passed every time. Run-to-run variance is the metric that matters here: an
+answer that is right two thirds of the time is not a feature you can ship.
+
+`npm run corpus` runs the same pipeline over 21 passages from 16 real sources
+across genres — editorials, arXiv abstracts, comedy (Jerome, Wodehouse,
+Carroll), novels (Melville, Dickens, Kafka, Austen), poetry (Blake, Whitman)
+and drama (Ibsen). There is no ground truth on unlabelled prose, so it scores
 two things that need none: how much of the summary is just the passage's own
 words, and whether names or dates appear in the answer that appear nowhere in
 the input.
+
+Current: 21/21 parsed, median 1.7s, mean restatement 15%.
 
 
 `npm run harness` runs the real content script in an ordinary page with a

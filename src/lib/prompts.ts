@@ -23,8 +23,13 @@ Rules:
   a claim, say what the claim is.
 - Do not present outside knowledge as though it came from the text. When the
   passage and its surroundings do not say what is being responded to, say that
-  plainly. You may add background you know independently, but label it as
-  background rather than reporting it as what the writer said.
+  plainly.
+- You may add something you know independently - who a name refers to, what a
+  work is about elsewhere - but it must be marked as coming from outside this
+  passage: begin it "Elsewhere in the work", "In the wider text" or "Outside
+  this passage". Never state a name, date or event that the passage does not
+  contain as though you had read it there. This matters most with famous
+  writing, where recalling the plot feels like reading it.
 - The marked sentence may be a view the writer is reporting in order to reject
   it - "it is argued that", "critics say", a claim quoted before being
   answered. Say whose view it is and what the writer does with it. Never
@@ -60,11 +65,17 @@ This is opinion, argument or commentary. The reader wants the writer's actual
 position, not a neutral summary. Tone matters: irony, resignation and sarcasm
 are frequently the whole message in this register, and are easy to miss.
 
+Before writing the position, decide whether the writer means it literally. A
+proposal too monstrous, too absurd or too self-defeating to be sincere is
+satire, and the reader is relying on you to say so - they may never have seen
+the piece before. Name it as satire or irony in the summary itself, not only
+in the tone.
+
 JSON shape:
 {
   "summary": "one sentence: what the writer is actually arguing",
   "sections": [
-    { "label": "Their position", "body": "the claim, stated plainly and without hedging" },
+    { "label": "Their position", "body": "what the writer actually believes - which is not always what the sentence literally says. If the passage is ironic or satirical, give the real position and say outright that the literal wording is not meant sincerely. Stating an ironic proposal as a sincere one is the worst mistake you can make here." },
     { "label": "Responding to", "body": "the situation, event or opposing view they assume you already know - taken from the surrounding text; if it does not say, state that it is not given rather than supplying one from memory" },
     { "label": "Tone", "body": "e.g. critical, sardonic, resigned, approving - and the words that carry it" }
   ]

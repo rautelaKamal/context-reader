@@ -70,23 +70,42 @@ async function paragraphsFrom(source) {
     return JSON.parse(readFileSync(source.localFile, 'utf8')).paragraphs;
   }
 
-  const res = await fetch(source.url, { headers: ua });
-  const body = await res.text();
+  // Gutenberg texts run to megabytes and the connection sometimes drops.
+  let body = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(source.url, { headers: ua, signal: AbortSignal.timeout(45000) });
+      body = await res.text();
+      break;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
 
   if (source.plainText) {
     const start = body.indexOf(source.startAt);
     const slice = body.slice(start === -1 ? 0 : start, (start === -1 ? 0 : start) + 60000);
-    return slice.split(/\n\s*\n/).map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
-      .filter((p) => p.length > 260 && p.length < 1400 && !/^[A-Z\s.]+$/.test(p));
+    const min = source.minLength ?? 260;
+    const max = source.maxLength ?? 1400;
+    return slice.split(/\n\s*\n/)
+      // Verse depends on its line breaks; prose does not and reads better joined.
+      .map((p) => (source.verse ? p.replace(/[ \t]+/g, ' ').trim() : p.replace(/\s*\n\s*/g, ' ').trim()))
+      .filter((p) => p.length > min && p.length < max && !/^[A-Z\s.]+$/.test(p))
+      .filter((p) => !source.verse || p.includes('\n'));
   }
 
   const stripped = body
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '');
 
-  return [...stripped.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+  const tags = source.tags ?? ['p'];
+  const blocks = tags.flatMap((tag) =>
+    [...stripped.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'gi'))]);
+
+  return blocks
     .map((m) => decode(m[1].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim())
-    .filter((p) => p.length > 220 && p.length < 1400)
+    .filter((p) => p.length > (source.minLength ?? 220) && p.length < (source.maxLength ?? 1400))
     .filter((p) => !/subscribe|newsletter|cookie|sign ?in|copyright|all rights reserved|click here|follow us|registered user|logged in|engage with our articles|your (subscription|account)/i.test(p))
     // Tag lists masquerade as paragraphs: many slashes, almost no sentences.
     .filter((p) => (p.match(/\//g) ?? []).length < 5);
@@ -111,14 +130,39 @@ function restatement(summary, selection) {
   return sum.filter((w) => src.has(w)).length / sum.length;
 }
 
+/**
+ * Names and dates in the answer that appear nowhere in the input.
+ *
+ * Two refinements over the obvious version, both learned from false results:
+ * single proper nouns have to count (the run that invented a character called
+ * Krogstad slipped through a multi-word-only pattern), and words that merely
+ * start a sentence have to not count, or every "While" and "The" is a finding.
+ */
+const SENTENCE_START = /(^|[.!?:;]\s+|\n\s*|["'(\[]\s*)$/;
+
 function unsupported(answer, inputText) {
   const haystack = inputText.toLowerCase();
   const found = new Set();
+
   for (const m of answer.match(/\b(1[6-9]\d{2}|20\d{2})\b/g) ?? []) {
     if (!haystack.includes(m)) found.add(m);
   }
-  for (const m of answer.match(/\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})+/g) ?? []) {
-    if (!haystack.includes(m.toLowerCase())) found.add(m);
+
+  const name = /\b[A-Z][a-z]{2,}(?:\s+(?:of|the|de|van|von)?\s*[A-Z][a-z]{2,})*/g;
+  for (const match of answer.matchAll(name)) {
+    const term = match[0];
+    if (SENTENCE_START.test(answer.slice(0, match.index))) continue;
+    // A multi-word name counts as supported if every word of it appears.
+    const parts = term.split(/\s+/).filter((w) => /^[A-Z]/.test(w));
+    // Tolerate morphology: "Lucases" from "Lucas", "American" from "America"
+    // are the answer inflecting a name the passage already contains.
+    const present = (w) => {
+      const lower = w.toLowerCase();
+      return [lower, lower.replace(/(es|s|n|an|ian)$/, ''), lower.replace(/s$/, '')]
+        .some((form) => form.length > 2 && haystack.includes(form));
+    };
+    if (parts.every(present)) continue;
+    found.add(term);
   }
   return [...found];
 }
