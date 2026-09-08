@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",
-    "next": "15.2.5",
+    "next": "15.2.8",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
