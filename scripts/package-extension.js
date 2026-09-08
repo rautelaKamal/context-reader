@@ -19,6 +19,14 @@ const zipPath = join(root, 'public', 'extension.zip');
 /** Point the build at a local server with API_BASE=http://localhost:3000 */
 const apiBase = process.env.API_BASE;
 
+/**
+ * `--store` produces the build for submission: localhost is stripped from the
+ * host permissions, because a published extension has no business asking to
+ * reach the developer's machine, and reviewers flag permissions a listing
+ * cannot justify.
+ */
+const forStore = process.argv.includes('--store');
+
 async function build() {
   await rm(dist, { recursive: true, force: true });
   await mkdir(dist, { recursive: true });
@@ -40,7 +48,16 @@ async function build() {
     console.log(`API base set to ${apiBase}`);
   }
 
-  const manifest = JSON.parse(await readFile(join(dist, 'manifest.json'), 'utf8'));
+  const manifestPath = join(dist, 'manifest.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+
+  if (forStore) {
+    if (apiBase) throw new Error('A store build cannot point at API_BASE - it must use the default.');
+    const before = manifest.host_permissions.length;
+    manifest.host_permissions = manifest.host_permissions.filter((h) => !h.includes('localhost'));
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    console.log(`Store build: dropped ${before - manifest.host_permissions.length} localhost permission`);
+  }
 
   await new Promise((resolve, reject) => {
     const output = createWriteStream(zipPath);
@@ -53,7 +70,7 @@ async function build() {
     archive.finalize();
   });
 
-  console.log(`Packaged ${manifest.name} v${manifest.version}`);
+  console.log(`Packaged ${manifest.name} v${manifest.version}${forStore ? ' (for the Chrome Web Store)' : ''}`);
   console.log(`  unpacked: dist-extension/`);
   console.log(`  zip:      public/extension.zip`);
 }

@@ -102,6 +102,7 @@ export default function Home() {
           <span>Built by Kamal Singh Rautela</span>
           <a href={REPO} target="_blank" rel="noopener noreferrer">Source on GitHub</a>
           <Link href="/test">Passages to try it on</Link>
+          <Link href="/privacy">Privacy</Link>
         </footer>
       </main>
     </>

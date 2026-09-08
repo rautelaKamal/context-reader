@@ -196,3 +196,24 @@ mark {
   margin: 0 0 16px; max-width: 60ch;
 }
 .specimen p:last-child { margin-bottom: 0; }
+
+/* ---------- policy ---------- */
+
+.policy { margin: 46px 0 0; max-width: 60ch; }
+.policy h2 {
+  font-family: var(--reading); font-size: 20px; font-weight: 600;
+  letter-spacing: -0.01em; margin: 40px 0 12px;
+  padding-top: 20px; border-top: 1px solid var(--rule);
+}
+.policy h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.policy p, .policy li {
+  font-family: var(--reading); font-size: 17.5px; line-height: 1.7;
+  margin: 0 0 14px;
+}
+.policy ul { margin: 0 0 14px; padding-left: 1.1em; }
+.policy li { margin-bottom: 4px; }
+.policy a { color: var(--mark-deep); text-underline-offset: 3px; }
+.policy .updated {
+  font-family: var(--ui); font-size: 14px; color: var(--ink-soft);
+  margin-top: 34px;
+}

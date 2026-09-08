@@ -59,6 +59,9 @@ Nothing is stored on our servers, no account is required, and no selected text
 is written to any database or log. Note that Google may use data sent to its
 free API tier to improve its products; see the privacy policy for detail.
 
+=== PRIVACY POLICY URL ===
+https://context-reader.vercel.app/privacy
+
 === PERMISSION JUSTIFICATION ===
 
 Host permission on all sites: the extension is a reading aid, and people read
