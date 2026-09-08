@@ -20,8 +20,15 @@ async function apiBase() {
 
 const FRIENDLY_STATUS = {
   429: 'Too many requests just now. Give it a moment.',
-  503: 'The service is not configured yet.',
+  500: 'The server hit a problem. Try again.',
+  502: 'Could not reach the model. Try again.',
+  503: 'The service is unavailable right now.',
 };
+
+// A single transient 5xx is common enough - the provider stalls, a dev server
+// reloads mid-request - that retrying once quietly is better than showing the
+// reader an error they would only dismiss and repeat themselves.
+const RETRY_ONCE = new Set([500, 502, 503, 504]);
 
 // Answers normally land in about two seconds, but the provider occasionally
 // stalls for tens of seconds. Without a ceiling the card just spins forever.
@@ -46,13 +53,17 @@ async function call(endpoint, payload) {
     throw error;
   }
 
+  if (!response.ok && RETRY_ONCE.has(response.status) && !payload.__retried) {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    return call(endpoint, { ...payload, __retried: true });
+  }
+
   if (!response.ok) {
-    let message = FRIENDLY_STATUS[response.status];
-    if (!message) {
-      const data = await response.json().catch(() => null);
-      message = data?.error || `Request failed (${response.status}).`;
-    }
-    throw new Error(message);
+    const data = await response.json().catch(() => null);
+    // Prefer the API's own message; it knows more than the status code does.
+    throw new Error(
+      data?.error || FRIENDLY_STATUS[response.status] || `Request failed (${response.status}).`,
+    );
   }
 
   return response.json();
