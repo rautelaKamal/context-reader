@@ -8,6 +8,58 @@
 
 const DEFAULT_API = 'https://context-reader.vercel.app';
 
+/**
+ * A daily allowance, counted on this device.
+ *
+ * The hosted key is on a free tier, which means the quota is shared by
+ * everyone using the extension and refuses politely once it is spent. The cap
+ * is not here to protect a bill - there is no bill - but to stop one heavy
+ * session exhausting the shared quota and making the extension look broken for
+ * everyone else. It is client-side and therefore trusting rather than
+ * enforced, which is the right trade for a free tool.
+ */
+const DAILY_LIMIT = 30;
+// The deep pass runs a much larger model, so it draws more of the allowance.
+const COST = { fast: 1, deep: 3 };
+
+function today() {
+  // Local date, so the reset happens at the reader's midnight, not UTC's.
+  const now = new Date();
+  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+}
+
+async function readUsage() {
+  try {
+    const { usage } = await chrome.storage.local.get('usage');
+    if (usage?.date === today()) return usage;
+  } catch {
+    // storage unavailable - treat as a fresh day rather than blocking the read
+  }
+  return { date: today(), used: 0 };
+}
+
+async function remainingToday() {
+  const usage = await readUsage();
+  return Math.max(0, DAILY_LIMIT - usage.used);
+}
+
+async function spend(depth) {
+  const cost = COST[depth] ?? COST.fast;
+  const usage = await readUsage();
+
+  if (usage.used + cost > DAILY_LIMIT) {
+    return { ok: false, remaining: Math.max(0, DAILY_LIMIT - usage.used) };
+  }
+
+  const next = { date: usage.date, used: usage.used + cost };
+  try {
+    await chrome.storage.local.set({ usage: next });
+  } catch {
+    // If it cannot be recorded, let the request through rather than deny it.
+  }
+  return { ok: true, remaining: DAILY_LIMIT - next.used };
+}
+
 async function apiBase() {
   try {
     const stored = await chrome.storage.local.get('apiBase');
@@ -19,7 +71,7 @@ async function apiBase() {
 }
 
 const FRIENDLY_STATUS = {
-  429: 'Too many requests just now. Give it a moment.',
+  429: 'Busy right now - a lot of people are reading. Try again in a minute.',
   500: 'The server hit a problem. Try again.',
   502: 'Could not reach the model. Try again.',
   503: 'The service is unavailable right now.',
@@ -70,17 +122,37 @@ async function call(endpoint, payload) {
 }
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request?.type === 'usage') {
+    remainingToday().then((remaining) =>
+      sendResponse({ success: true, remaining, limit: DAILY_LIMIT }));
+    return true;
+  }
+
   if (request?.type !== 'explain' && request?.type !== 'translate') return false;
 
   const endpoint = request.type === 'translate' ? '/api/translate' : '/api/explain';
+  const depth = request.payload?.depth === 'deep' ? 'deep' : 'fast';
 
-  call(endpoint, request.payload)
-    .then((data) => sendResponse({ success: true, data }))
+  spend(depth)
+    .then((allowance) => {
+      if (!allowance.ok) {
+        const err = new Error(
+          depth === 'deep'
+            ? `Not enough left today for a deep read (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
+            : `That is your ${DAILY_LIMIT} explanations for today. Resets at midnight.`,
+        );
+        err.overLimit = true;
+        throw err;
+      }
+      return call(endpoint, request.payload).then((data) =>
+        sendResponse({ success: true, data, remaining: allowance.remaining }));
+    })
     .catch((error) => {
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
       sendResponse({
         success: false,
         error: offline ? 'No internet connection.' : error.message,
+        overLimit: Boolean(error.overLimit),
       });
     });
 

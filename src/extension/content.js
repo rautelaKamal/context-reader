@@ -89,6 +89,7 @@
     }
     .foot button[disabled] { opacity: .4; cursor: default; text-decoration: none; }
     .foot .spacer { flex: 1; }
+    .foot .left { font-variant-numeric: tabular-nums; }
     .deep { margin-right: 12px; }
     .spinner {
       width: 14px; height: 14px; border-radius: 50%;
@@ -229,6 +230,7 @@
       this.context = null;
       this.mode = null;
       this.depth = 'fast';
+      this.remaining = null;
       // Replaced by the list the API returns, which omits lenses that make no
       // sense for the passage - glossing jargon in a poem, for instance.
       this.modes = [
@@ -357,6 +359,7 @@
       const foot = document.createElement('div');
       foot.className = 'foot';
       const label = document.createElement('span');
+      label.className = 'left';
       label.textContent = 'ContextReader';
       const spacer = document.createElement('span');
       spacer.className = 'spacer';
@@ -376,7 +379,7 @@
       card.appendChild(foot);
 
       this.root.appendChild(card);
-      this.card = { el: card, modes, body, deeper };
+      this.card = { el: card, modes, body, deeper, label };
 
       this.anchor = rect;
       this.positionCard();
@@ -450,7 +453,7 @@
       this.positionCard();
     }
 
-    setError(message) {
+    setError(message, { retryable = true } = {}) {
       if (!this.card) return;
       this.card.modes.classList.remove('pending');
       this.card.deeper.disabled = false;
@@ -459,11 +462,13 @@
       error.className = 'error';
       error.textContent = message;
 
-      const retry = document.createElement('button');
-      retry.className = 'retry';
-      retry.textContent = 'Try again';
-      retry.addEventListener('click', () => this.request());
-      error.append(' ', retry);
+      if (retryable) {
+        const retry = document.createElement('button');
+        retry.className = 'retry';
+        retry.textContent = 'Try again';
+        retry.addEventListener('click', () => this.request());
+        error.append(' ', retry);
+      }
 
       this.card.body.appendChild(error);
 
@@ -489,9 +494,12 @@
           return;
         }
         if (!response?.success) {
-          this.setError(response?.error || 'Could not get an explanation.');
+          this.setError(response?.error || 'Could not get an explanation.', {
+            retryable: !response?.overLimit,
+          });
           return;
         }
+        if (typeof response.remaining === 'number') this.remaining = response.remaining;
         this.renderResult(response.data);
       });
     }
@@ -507,6 +515,13 @@
 
       this.card.deeper.disabled = data.depth === 'deep';
       this.card.deeper.textContent = data.depth === 'deep' ? 'Read closely' : 'Go deeper';
+
+      if (typeof this.remaining === 'number') {
+        this.card.label.textContent = this.remaining === 0
+          ? 'none left today'
+          : `${this.remaining} left today`;
+        this.card.label.title = 'Daily allowance, resets at midnight';
+      }
 
       this.card.modes.classList.remove('pending');
       this.card.body.textContent = '';

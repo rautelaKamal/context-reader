@@ -1,37 +1,71 @@
-Context Reader - Instant Text Explanations
+=== NAME ===
+ContextReader — understand what the writer means
 
-Short Description:
-Get instant explanations and translations for any text you select on the web.
+=== SHORT DESCRIPTION (132 char max) ===
+Select a passage that lost you. Get what the writer actually means, read in context, without leaving the page.
 
-Detailed Description:
-Context Reader is a powerful Chrome extension that helps you understand complex text with just one click. Simply select any text on a webpage and get instant, AI-powered explanations and translations.
+=== DETAILED DESCRIPTION ===
+Some sentences stop you even though you know every word in them.
 
-Key Features:
-• Instant Explanations: Get clear, concise explanations of complex text
-• Quick Translations: Translate selected text to your preferred language
-• User-Friendly Interface: Clean, non-intrusive popup that appears only when needed
-• Privacy-Focused: Your data is processed securely and not stored
-• Works Everywhere: Compatible with most websites
+An editorial whose argument you cannot quite pin down. A line of Shakespeare.
+A paragraph in a paper outside your field. A poem that clearly means something
+more than it says.
 
-Perfect for:
-• Students reading academic papers
-• Professionals working with technical documents
-• Non-native English speakers
-• Anyone who wants to better understand complex content
+ContextReader is for those. Select the passage and it tells you what the writer
+is actually saying — read together with the paragraph around it, not as an
+isolated string of words.
 
-How to Use:
-1. Select any text on a webpage
-2. Click the "Explain" button in the popup
-3. Get instant, clear explanations
-4. Use the "Translate" button for translations
+WHY CONTEXT MATTERS
 
-Privacy & Security:
-• No personal data collection
-• Secure API communication
-• No ads or tracking
+Most tools define words. That is rarely the problem. You cannot say what a line
+of verse means from the line alone, and you cannot explain what an editorial is
+arguing against without the sentences that set it up. ContextReader sends the
+surrounding paragraph too, so it can answer the question you actually have.
 
-Support:
-For support or feedback, visit our GitHub repository: https://github.com/rautelaKamal/context-reader
+FIVE WAYS TO READ A PASSAGE
 
-Version: 1.0.0
-Developer: Kamal Rautela
+• Plain meaning — the same thing said in ordinary English
+• What's the point? — the writer's position, what they are arguing against,
+  and their tone, including irony that is easy to miss
+• Line by line — verse worked through one line at a time
+• How it works — word choice, sound, line breaks, deliberate double meanings
+• The jargon — technical terms defined in the sense this text uses them
+
+It picks the one that suits the passage and offers only the lenses that make
+sense for it. You can switch with a single tap.
+
+GO DEEPER
+
+Answers arrive in about two seconds. When that is not enough, Go deeper hands
+the same passage to a slower, more careful model — the one that notices a word
+held at a line break to make it read two ways.
+
+WHAT IT DOES NOT DO
+
+It does not interrupt. Selecting text shows a small pill, and nothing happens
+until you ask. No popup fires while you are highlighting to read.
+
+FREE, WITH A DAILY ALLOWANCE
+
+30 explanations a day, resetting at midnight. A deep read uses three. The
+allowance exists because the service runs on a shared free quota — the limit
+keeps it working for everyone rather than letting one long session exhaust it.
+
+PRIVACY
+
+The passage you select and the page address are sent to the explanation
+service and passed to Google's Gemini API, which produces the explanation.
+Nothing is stored on our servers, no account is required, and no selected text
+is written to any database or log. Note that Google may use data sent to its
+free API tier to improve its products; see the privacy policy for detail.
+
+=== PERMISSION JUSTIFICATION ===
+
+Host permission on all sites: the extension is a reading aid, and people read
+on arbitrary websites. It cannot know in advance which pages a reader will
+need help with. The content script only reacts to a deliberate selection
+followed by a click or keyboard shortcut; it does not read, collect or
+transmit page content otherwise.
+
+Storage: records the count of explanations used today, so the daily allowance
+can reset at midnight. No personal data is stored.
