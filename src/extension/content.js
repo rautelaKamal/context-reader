@@ -83,6 +83,9 @@
       font: inherit; color: inherit; background: none;
       border: none; cursor: pointer; text-decoration: underline;
     }
+    .foot button[disabled] { opacity: .4; cursor: default; text-decoration: none; }
+    .foot .spacer { flex: 1; }
+    .deep { margin-right: 12px; }
     .spinner {
       width: 14px; height: 14px; border-radius: 50%;
       border: 2px solid currentColor; border-right-color: transparent;
@@ -91,6 +94,10 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .status { display: flex; align-items: center; gap: 8px; padding: 16px 14px; color: #78716c; }
     .error { padding: 14px; color: #b91c1c; }
+    .retry {
+      font: inherit; color: inherit; background: none; border: none;
+      cursor: pointer; text-decoration: underline; padding: 0;
+    }
 
     /* Must come after every base rule: these override at equal specificity,
        so declaration order is what decides. Sitting above them meant the
@@ -217,6 +224,16 @@
       this.card = null;
       this.context = null;
       this.mode = null;
+      this.depth = 'fast';
+      // Replaced by the list the API returns, which omits lenses that make no
+      // sense for the passage - glossing jargon in a poem, for instance.
+      this.modes = [
+        { id: 'plain', label: 'Plain meaning' },
+        { id: 'point', label: "What's the point?" },
+        { id: 'lines', label: 'Line by line' },
+        { id: 'craft', label: 'How it works' },
+        { id: 'jargon', label: 'The jargon' },
+      ];
       this.anchor = null;
 
       document.addEventListener('selectionchange', () => this.onSelectionChange());
@@ -313,6 +330,7 @@
       this.dismissTrigger();
       this.context = collectContext(current.range, current.text);
       this.mode = null;
+      this.depth = 'fast';
       this.renderCard(current.range.getBoundingClientRect());
       this.request();
     }
@@ -336,14 +354,25 @@
       foot.className = 'foot';
       const label = document.createElement('span');
       label.textContent = 'ContextReader';
+      const spacer = document.createElement('span');
+      spacer.className = 'spacer';
+      const deeper = document.createElement('button');
+      deeper.className = 'deep';
+      deeper.textContent = 'Go deeper';
+      deeper.title = 'Ask a slower, more careful model to read it again';
+      deeper.addEventListener('click', () => {
+        if (this.depth === 'deep') return;
+        this.depth = 'deep';
+        this.request();
+      });
       const close = document.createElement('button');
       close.textContent = 'Close';
       close.addEventListener('click', () => this.closeCard());
-      foot.append(label, close);
+      foot.append(label, spacer, deeper, close);
       card.appendChild(foot);
 
       this.root.appendChild(card);
-      this.card = { el: card, modes, body };
+      this.card = { el: card, modes, body, deeper };
 
       this.anchor = rect;
       this.positionCard();
@@ -383,21 +412,17 @@
 
     renderModes() {
       if (!this.card) return;
-      const available = [
-        ['plain', 'Plain meaning'],
-        ['point', "What's the point?"],
-        ['lines', 'Line by line'],
-        ['jargon', 'The jargon'],
-      ];
       this.card.modes.textContent = '';
-      for (const [id, text] of available) {
+      for (const { id, label } of this.modes) {
         const chip = document.createElement('button');
         chip.className = 'chip';
-        chip.textContent = text;
+        chip.textContent = label;
         chip.setAttribute('aria-pressed', String(this.mode === id));
         chip.addEventListener('click', () => {
           if (this.mode === id) return;
           this.mode = id;
+          // A new lens starts fast again; deep is something you ask for.
+          this.depth = 'fast';
           this.renderModes();
           this.request();
         });
@@ -424,10 +449,18 @@
     setError(message) {
       if (!this.card) return;
       this.card.modes.classList.remove('pending');
+      this.card.deeper.disabled = false;
       this.card.body.textContent = '';
       const error = document.createElement('div');
       error.className = 'error';
       error.textContent = message;
+
+      const retry = document.createElement('button');
+      retry.className = 'retry';
+      retry.textContent = 'Try again';
+      retry.addEventListener('click', () => this.request());
+      error.append(' ', retry);
+
       this.card.body.appendChild(error);
 
       this.positionCard();
@@ -435,10 +468,16 @@
 
     request() {
       if (!this.context) return;
-      this.setStatus('Reading the passage…');
+      this.setStatus(
+        this.depth === 'deep'
+          ? 'Reading it again, slowly. This takes up to half a minute…'
+          : 'Reading the passage…',
+      );
+      if (this.card) this.card.deeper.disabled = true;
 
       const payload = { ...this.context };
       if (this.mode) payload.mode = this.mode;
+      if (this.depth === 'deep') payload.depth = 'deep';
 
       chrome.runtime.sendMessage({ type: 'explain', payload }, (response) => {
         if (chrome.runtime.lastError) {
@@ -455,10 +494,15 @@
 
     renderResult(data) {
       if (!this.card) return;
-      if (data.mode && this.mode !== data.mode) {
-        this.mode = data.mode;
-        this.renderModes();
+
+      if (Array.isArray(data.modes) && data.modes.length) {
+        this.modes = data.modes.map((m) => ({ id: m.id, label: m.label }));
       }
+      if (data.mode) this.mode = data.mode;
+      this.renderModes();
+
+      this.card.deeper.disabled = data.depth === 'deep';
+      this.card.deeper.textContent = data.depth === 'deep' ? 'Read closely' : 'Go deeper';
 
       this.card.modes.classList.remove('pending');
       this.card.body.textContent = '';

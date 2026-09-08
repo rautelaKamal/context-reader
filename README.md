@@ -27,9 +27,16 @@ usually ones where every word is familiar:
 | A dense technical paper | The claim, with the terminology defined in place |
 | Anything else | The same thing said plainly |
 
-Those are four different questions, so ContextReader has four lenses. It picks
-one based on the shape of the text and the page it came from; you can switch
-with a single tap.
+Those are different questions, so ContextReader has five lenses — plain
+meaning, the argument, line by line, how it works, and the jargon. It picks one
+from the shape of the text and the page it came from, offers only the ones that
+suit the passage, and you can switch with a single tap.
+
+Answers come back in under two seconds. When that is not enough, **Go deeper**
+hands the same passage to a slower reasoning model. On three lines of Plath the
+quick pass explained the imagery; the deep pass caught that "fine" is held at
+the line break so it reads first as praise and then, on the next line, as a
+grade of cloth.
 
 ## How it works
 
@@ -68,7 +75,8 @@ Copy `.env.example` to `.env.local` and set:
 |---|---|
 | `PROVIDER_API_KEY` | Key for the model provider |
 | `PROVIDER_BASE_URL` | Any OpenAI-compatible endpoint, including a local one |
-| `EXPLAIN_MODEL` | Model id (default: `gemini-3.5-flash-lite`) |
+| `EXPLAIN_MODEL` | Fast model, used for every answer (default: `gemini-3.5-flash-lite`) |
+| `DEEP_MODEL` | Slower model behind Go deeper (default: `gemini-3.6-flash`) |
 
 Get a free Google key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) —
 no credit card. [Groq](https://console.groq.com/keys) also works; so does anything
@@ -122,7 +130,7 @@ printed output is what you actually judge. It also covers irony, litotes,
 an opposing view quoted in order to be rejected, and legal and statistical
 false friends.
 
-`npm run eval -- --repeat 3` runs every case three times and reports which ones
+`npm run eval` covers 19 cases; `-- --repeat 3` runs every case three times and reports which ones
 passed every time. Run-to-run variance is the metric that matters here: an
 answer that is right two thirds of the time is not a feature you can ship.
 

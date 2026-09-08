@@ -6,7 +6,7 @@
  * own prompt and its own output shape.
  */
 
-export type ModeId = 'plain' | 'point' | 'lines' | 'jargon';
+export type ModeId = 'plain' | 'point' | 'lines' | 'craft' | 'jargon';
 
 export interface ModeDef {
   id: ModeId;
@@ -30,6 +30,11 @@ export const MODES: Record<ModeId, ModeDef> = {
     id: 'lines',
     label: 'Line by line',
     hint: 'Walk through verse one line at a time',
+  },
+  craft: {
+    id: 'craft',
+    label: 'How it works',
+    hint: 'Word choice, sound, line breaks, deliberate double meanings',
   },
   jargon: {
     id: 'jargon',
@@ -108,6 +113,19 @@ function pathOf(url?: string): string {
  * Pick the mode to open with. The user can always override with one tap, so
  * this only needs to be right often enough to save a click.
  */
+/**
+ * Which lenses are worth offering for this passage.
+ *
+ * Glossing technical terms is meaningless in verse - asked about a Plath
+ * stanza it explained that a paperweight holds down loose sheets of paper -
+ * so that chip is not shown there.
+ */
+export function applicableModes({ selection, url }: DetectionInput): ModeId[] {
+  const verse = looksLikeVerse(selection);
+  void url;
+  return MODE_IDS.filter((id) => (verse ? id !== 'jargon' : true));
+}
+
 export function detectMode({ selection, url }: DetectionInput): ModeId {
   if (looksLikeVerse(selection)) return 'lines';
 

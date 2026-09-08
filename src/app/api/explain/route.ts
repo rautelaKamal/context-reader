@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { explain } from '@/lib/ai';
 import { corsHeaders } from '@/lib/cors';
 import { parseContext, ValidationError } from '@/lib/context';
-import { detectMode, isModeId, MODES } from '@/lib/modes';
+import { applicableModes, detectMode, isModeId, MODES } from '@/lib/modes';
 import { hasProviderCredentials, ProviderError } from '@/lib/provider';
 import { checkRateLimit, clientKey } from '@/lib/ratelimit';
 
@@ -52,9 +52,15 @@ export async function POST(request: Request) {
       ? requested
       : detectMode({ selection: context.selection, url: context.url });
 
-    const result = await explain(context, mode);
+    const depth = (body as Record<string, unknown>).depth === 'deep' ? 'deep' : 'fast';
+    const result = await explain(context, mode, depth);
 
-    return NextResponse.json(result, {
+    // The extension renders its chips from this rather than a hardcoded list,
+    // so a lens that makes no sense for the passage simply is not offered.
+    const modes = applicableModes({ selection: context.selection, url: context.url })
+      .map((id) => MODES[id]);
+
+    return NextResponse.json({ ...result, modes }, {
       headers: { ...headers, 'X-RateLimit-Remaining': String(limit.remaining) },
     });
   } catch (error) {

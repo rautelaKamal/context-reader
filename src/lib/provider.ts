@@ -14,7 +14,11 @@ export interface ChatMessage {
 export interface ChatOptions {
   maxTokens?: number;
   temperature?: number;
+  /** 'fast' answers in about two seconds; 'deep' thinks, and takes far longer. */
+  depth?: Depth;
 }
+
+export type Depth = 'fast' | 'deep';
 
 export interface Provider {
   name: string;
@@ -43,11 +47,16 @@ function createOpenAICompatibleProvider(): Provider {
   const baseUrl =
     process.env.PROVIDER_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai';
   const apiKey = process.env.HUGGING_FACE_API_KEY ?? process.env.PROVIDER_API_KEY;
-  const model = process.env.EXPLAIN_MODEL ?? 'gemini-3.5-flash-lite';
+  const fastModel = process.env.EXPLAIN_MODEL ?? 'gemini-3.5-flash-lite';
+  // Only used when the reader asks for a second, slower pass. Reasoning models
+  // are far better at the things a quick answer flattens - irony, wordplay,
+  // what a comparison is doing - and far too slow to wait for by default.
+  const deepModel = process.env.DEEP_MODEL ?? 'gemini-3.6-flash';
 
   return {
-    name: `openai-compatible:${model}`,
+    name: `openai-compatible:${fastModel}`,
     async chat(messages, options = {}) {
+      const model = options.depth === 'deep' ? deepModel : fastModel;
       if (!apiKey) {
         throw new ProviderError('No model API key configured', 500);
       }

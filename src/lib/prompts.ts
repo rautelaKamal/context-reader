@@ -21,6 +21,14 @@ Rules:
 - Never pad. No preamble, no "this passage discusses", no restating the task.
 - Prefer concrete language over abstract paraphrase. If the writer is making
   a claim, say what the claim is.
+- Point at your evidence. When you say something about the tone, the argument
+  or the effect, name the word or phrase in the passage that carries it, in
+  quotation marks. Not "the tone is grim" but "the tone is grim - she calls
+  her own foot a \"paperweight\"". This keeps you checkable, and finding the
+  word forces a closer reading than asserting the impression does.
+- If the passage does something readers genuinely argue about - a comparison
+  many find unearned, a claim its own field disputes - say so in one clause.
+  Mark it as outside the passage, as with any other background.
 - Do not present outside knowledge as though it came from the text. When the
   passage and its surroundings do not say what is being responded to, say that
   plainly.
@@ -94,6 +102,27 @@ JSON shape:
   "summary": "one or two sentences: what the whole passage is saying, and the feeling of it",
   "sections": [
     { "label": "<the original line, verbatim>", "body": "what this line means" }
+  ]
+}`.trim(),
+
+  craft: `
+Mode: HOW IT WORKS.
+
+The reader follows the meaning and wants to know why it was written this way.
+Attend to the writing itself: word choice, sound, rhythm, where the lines
+break, images, and words doing two jobs at once.
+
+Deliberate ambiguity matters most and is missed most. A word held at the end
+of a line, a term that carries an everyday sense and a technical one at the
+same time, a phrase that reads two ways - name it and say what each reading
+gives. Quote the exact words every time; a section without a quotation from
+the passage is not worth writing.
+
+JSON shape:
+{
+  "summary": "one or two sentences: the main effect of how this is written, and how it is achieved",
+  "sections": [
+    { "label": "<the exact word or phrase, quoted from the passage>", "body": "what it is doing and why that choice matters" }
   ]
 }`.trim(),
 

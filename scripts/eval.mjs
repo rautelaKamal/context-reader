@@ -263,13 +263,37 @@ const CASES = [
     expect: [/sarcas|iron|not (really |actually )?grateful|mock|criticis|criticiz|complain|rebuk|scath|bitter/i],
     reject: [/genuine(ly)? (grateful|thankful|praise|pleased)|sincere(ly)? (grateful|thanks|praise)|expressing (real|honest) (thanks|gratitude)/i],
   },
+  {
+    name: 'craft-pun',
+    why: 'The "sun of York" pun on son. A reading that misses it misses the line.',
+    mode: 'craft',
+    context: {
+      selection: 'Now is the winter of our discontent\nMade glorious summer by this sun of York;',
+      markedParagraph: '\u00abNow is the winter of our discontent\nMade glorious summer by this sun of York;\u00bb\nAnd all the clouds that lour\u2019d upon our house\nIn the deep bosom of the ocean buried.',
+      title: 'Richard III, Act I Scene I',
+    },
+    expect: [/\bson\b|pun|wordplay|double meaning|two meanings|homophone/i],
+  },
+  {
+    name: 'craft-enjambment',
+    why: 'The verb phrase "load and bless" is split across the line break. The fast model consistently misses this; it is what the deep pass exists for.',
+    mode: 'craft',
+    depth: 'deep',
+    context: {
+      selection: 'Conspiring with him how to load and bless\nWith fruit the vines that round the thatch-eves run;',
+      markedParagraph: 'Season of mists and mellow fruitfulness,\nClose bosom-friend of the maturing sun;\n\u00abConspiring with him how to load and bless\nWith fruit the vines that round the thatch-eves run;\u00bb',
+      title: 'To Autumn',
+    },
+    expect: [/line break|enjamb|next line|carries over|runs on|spills|continues (into|onto)|across the line|end of (the |a )?line|hang|suspend|holds? .{0,20}(back|over)/i],
+  },
 ];
 
 const argv = process.argv.slice(2);
 const repeatFlag = argv.indexOf('--repeat');
 const REPEAT = repeatFlag === -1 ? 1 : Number(argv[repeatFlag + 1] ?? 3);
 // Skip the flag and its value, or "--repeat 3" leaves "3" looking like a filter.
-const positional = argv.filter((a, i) => !a.startsWith('--') && i !== repeatFlag + 1);
+const skip = repeatFlag === -1 ? -1 : repeatFlag + 1;
+const positional = argv.filter((a, i) => !a.startsWith('--') && i !== skip);
 const filter = positional[0];
 const cases = filter ? CASES.filter((c) => c.name.includes(filter)) : CASES;
 /** name -> how many of the REPEAT runs passed. Flakiness is the real signal. */
@@ -300,10 +324,13 @@ for (const [i, testCase] of schedule.entries()) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
         body: JSON.stringify({
-          model: MODEL,
+          model: testCase.depth === 'deep'
+            ? (process.env.DEEP_MODEL ?? 'gemini-3.6-flash')
+            : MODEL,
           messages: buildMessages(mode, testCase.context),
-          max_tokens: mode === 'lines' ? 1400 : 1100,
+          max_tokens: (mode === 'lines' ? 1400 : 1100) * (testCase.depth === 'deep' ? 4 : 1),
           temperature: 0.1,
+
         }),
       });
       if (res.status === 503 || res.status === 429) {
@@ -332,7 +359,16 @@ for (const [i, testCase] of schedule.entries()) {
     : raw;
 
   const missing = (testCase.expect ?? []).filter((re) => !re.test(text));
-  const forbidden = (testCase.reject ?? []).filter((re) => re.test(text));
+  // Reject patterns describe misreadings the answer must not assert. Since the
+  // prompt now requires quoting the passage as evidence, an answer explaining
+  // "not unreasonable to suppose" necessarily contains that phrase - so strip
+  // quoted spans before checking, or correct readings fail for citing the text.
+  const asserted = text
+    .replace(/"[^"]*"/g, ' ')
+    .replace(/\u201c[^\u201d]*\u201d/g, ' ')
+    .replace(/\u00ab[^\u00bb]*\u00bb/g, ' ')
+    .replace(/'[^']{3,}'/g, ' ');
+  const forbidden = (testCase.reject ?? []).filter((re) => re.test(asserted));
   const ok = parsed && missing.length === 0 && forbidden.length === 0;
 
   ok ? passed++ : (failed++, failures.push(testCase.name));
@@ -340,7 +376,7 @@ for (const [i, testCase] of schedule.entries()) {
   t.pass += ok ? 1 : 0; t.total += 1;
   tally.set(testCase.name, t);
 
-  console.log(`${ok ? '✓' : '✗'} ${testCase.name} [${mode}]`);
+  console.log(`${ok ? '✓' : '✗'} ${testCase.name} [${mode}${testCase.depth === 'deep' ? ', deep' : ''}]`);
   console.log(`  ${testCase.why}`);
   if (!parsed) console.log('  !! output did not parse as JSON');
   if (missing.length) console.log(`  !! missing: ${missing.join(' , ')}`);

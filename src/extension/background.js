@@ -23,14 +23,28 @@ const FRIENDLY_STATUS = {
   503: 'The service is not configured yet.',
 };
 
+// Answers normally land in about two seconds, but the provider occasionally
+// stalls for tens of seconds. Without a ceiling the card just spins forever.
+const TIMEOUT_MS = { fast: 30_000, deep: 120_000 };
+
 async function call(endpoint, payload) {
   const base = await apiBase();
+  const budget = TIMEOUT_MS[payload?.depth === 'deep' ? 'deep' : 'fast'];
 
-  const response = await fetch(`${base}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch(`${base}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(budget),
+    });
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      throw new Error(`Took longer than ${Math.round(budget / 1000)}s. Try again.`);
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     let message = FRIENDLY_STATUS[response.status];
