@@ -40,9 +40,10 @@ export class ProviderError extends Error {
  * change.
  */
 function createOpenAICompatibleProvider(): Provider {
-  const baseUrl = process.env.PROVIDER_BASE_URL ?? 'https://router.huggingface.co/v1';
+  const baseUrl =
+    process.env.PROVIDER_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai';
   const apiKey = process.env.HUGGING_FACE_API_KEY ?? process.env.PROVIDER_API_KEY;
-  const model = process.env.EXPLAIN_MODEL ?? 'Qwen/Qwen2.5-72B-Instruct';
+  const model = process.env.EXPLAIN_MODEL ?? 'gemini-3.5-flash-lite';
 
   return {
     name: `openai-compatible:${model}`,

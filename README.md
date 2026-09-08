@@ -66,13 +66,31 @@ Copy `.env.example` to `.env.local` and set:
 
 | Variable | Purpose |
 |---|---|
-| `HUGGING_FACE_API_KEY` | API key for the model provider |
-| `EXPLAIN_MODEL` | Model id (default: `Qwen/Qwen2.5-72B-Instruct`) |
+| `PROVIDER_API_KEY` | Key for the model provider |
 | `PROVIDER_BASE_URL` | Any OpenAI-compatible endpoint, including a local one |
+| `EXPLAIN_MODEL` | Model id (default: `gemini-3.5-flash-lite`) |
 
-The provider lives behind one interface in [`src/lib/provider.ts`](src/lib/provider.ts),
-so switching to another service — or a model running on your own machine — is a
-change to that file only.
+Get a free Google key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) —
+no credit card. [Groq](https://console.groq.com/keys) also works; so does anything
+else speaking the OpenAI chat-completions API, including a model on your own
+machine. The provider lives behind one interface in
+[`src/lib/provider.ts`](src/lib/provider.ts), so switching is config, not code.
+
+**Pick a fast model, not a smart one.** Measured on the same sonnet:
+
+| Model | Time | Verdict |
+|---|---|---|
+| `gemini-3.5-flash-lite` | **1.8 s** | what we ship |
+| `gemini-3.6-flash` (thinking on) | 32 s | unusable |
+| `gemini-3.6-flash` (`reasoning_effort: minimal`) | 14 s | still too slow |
+
+The thinking models are not meaningfully better at this task, and this is a tool
+you reach for mid-sentence. Anything over a few seconds breaks the reading it is
+supposed to protect.
+
+> One gotcha: if `.env.local` contains an empty `PROVIDER_API_KEY=`, it
+> **overrides** a real value in `.env`, because `.env.local` wins. Set the key in
+> one file only.
 
 ## Layout
 

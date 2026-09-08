@@ -12,7 +12,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "build:extension": "node scripts/package-extension.js",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/test.mjs"
+    "test": "node scripts/test.mjs",
+    "try": "node scripts/try.mjs"
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",
