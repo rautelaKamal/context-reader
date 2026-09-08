@@ -47,14 +47,6 @@
       box-shadow: 0 8px 40px rgba(0,0,0,.18);
       font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif;
     }
-    @media (prefers-color-scheme: dark) {
-      .card { background: #1c1917; color: #f5f5f4; border-color: #44403c; }
-      .modes { border-color: #44403c; }
-      .chip { background: #292524; color: #d6d3d1; border-color: #44403c; }
-      .chip[aria-pressed="true"] { background: #f5f5f4; color: #1c1917; }
-      .label { color: #a8a29e; }
-      .foot { border-color: #44403c; color: #a8a29e; }
-    }
     .modes {
       display: flex; gap: 6px; flex-wrap: wrap;
       padding: 10px 12px; border-bottom: 1px solid #e7e5e4;
@@ -95,6 +87,18 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .status { display: flex; align-items: center; gap: 8px; padding: 16px 14px; color: #78716c; }
     .error { padding: 14px; color: #b91c1c; }
+
+    /* Must come after every base rule: these override at equal specificity,
+       so declaration order is what decides. Sitting above them meant the
+       inactive chips took the light styling and the active one vanished. */
+    @media (prefers-color-scheme: dark) {
+      .card { background: #1c1917; color: #f5f5f4; border-color: #44403c; }
+      .modes { border-color: #44403c; }
+      .chip { background: #292524; color: #d6d3d1; border-color: #44403c; }
+      .chip[aria-pressed="true"] { background: #f5f5f4; color: #1c1917; }
+      .label { color: #a8a29e; }
+      .foot { border-color: #44403c; color: #a8a29e; }
+    }
   `;
 
   /** Text content with line structure preserved - verse depends on it. */
