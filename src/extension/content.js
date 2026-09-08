@@ -78,6 +78,10 @@
       display: flex; justify-content: space-between; align-items: center;
       padding: 8px 14px; border-top: 1px solid #e7e5e4;
       font-size: 11.5px; color: #78716c;
+      /* The card scrolls, so this has to be pinned the way .modes is. A long
+         answer otherwise carries Close and Go deeper off the bottom, leaving
+         no visible way to act on the card without scrolling first. */
+      position: sticky; bottom: 0; background: inherit;
     }
     .foot button {
       font: inherit; color: inherit; background: none;
