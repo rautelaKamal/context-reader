@@ -112,6 +112,14 @@ npm run try sonnet  # run a passage against the live model
 npm run harness     # then open http://localhost:3000/_dev/index.html
 ```
 
+`npm run eval` runs 10 passages with a known right reading against the live
+model — archaic false friends (*protest*, *want*), sustained irony, metaphor,
+a referent that only the preceding paragraph supplies, dense editorial
+register, technical terms, a Devanagari couplet, and an ablation pair that
+runs the same selection with and without context to check the model neither
+loses the answer nor invents one. Keyword checks catch regressions; the
+printed output is what you actually judge.
+
 `npm run harness` runs the real content script in an ordinary page with a
 stand-in for the extension APIs, so selection handling, positioning, the card
 and mode switching can be exercised against the real API without loading

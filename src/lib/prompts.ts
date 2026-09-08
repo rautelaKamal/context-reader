@@ -21,7 +21,14 @@ Rules:
 - Never pad. No preamble, no "this passage discusses", no restating the task.
 - Prefer concrete language over abstract paraphrase. If the writer is making
   a claim, say what the claim is.
-- If the passage assumes context the reader probably lacks, supply it briefly.
+- Do not present outside knowledge as though it came from the text. When the
+  passage and its surroundings do not say what is being responded to, say that
+  plainly. You may add background you know independently, but label it as
+  background rather than reporting it as what the writer said.
+- If the writer does not mean what they literally say - irony, satire, sarcasm,
+  a position stated only to demolish it - say so in the summary and in their
+  position, not only in the tone. Never restate an ironic proposal as if it
+  were sincerely meant; a reader who did not already know would be misled by it.
 - If something is genuinely ambiguous, say so rather than inventing certainty.
 - Reply with JSON only. No markdown fence, no commentary outside the JSON.
 `.trim();
@@ -54,7 +61,7 @@ JSON shape:
   "summary": "one sentence: what the writer is actually arguing",
   "sections": [
     { "label": "Their position", "body": "the claim, stated plainly and without hedging" },
-    { "label": "Responding to", "body": "the situation, event or opposing view they assume you already know" },
+    { "label": "Responding to", "body": "the situation, event or opposing view they assume you already know - taken from the surrounding text; if it does not say, state that it is not given rather than supplying one from memory" },
     { "label": "Tone", "body": "e.g. critical, sardonic, resigned, approving - and the words that carry it" }
   ]
 }`.trim(),

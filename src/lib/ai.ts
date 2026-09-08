@@ -16,7 +16,9 @@ export async function explain(context: PassageContext, mode: ModeId): Promise<Ex
   const raw = await provider.chat(messages, {
     // Line-by-line output has one section per line, so it needs the headroom.
     maxTokens: mode === 'lines' ? 1200 : 700,
-    temperature: 0.3,
+    // Low: this is extraction, not composition. At 0.3 the same passage came
+    // back with meaningfully different readings between runs.
+    temperature: 0.1,
   });
 
   const parsed = parseExplanation(raw);

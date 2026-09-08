@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",
     "try": "node scripts/try.mjs",
-    "harness": "node scripts/harness.mjs"
+    "harness": "node scripts/harness.mjs",
+    "eval": "node scripts/eval.mjs"
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",

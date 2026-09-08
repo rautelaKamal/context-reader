@@ -136,7 +136,7 @@ const res = await fetch(`${BASE}/chat/completions`, {
     model: MODEL,
     messages,
     max_tokens: mode === 'lines' ? 1200 : 700,
-    temperature: 0.3,
+    temperature: 0.1,
     ...(process.env.EFFORT ? { reasoning_effort: process.env.EFFORT } : {}),
   }),
 });
