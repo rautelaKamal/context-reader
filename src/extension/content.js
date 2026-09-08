@@ -58,6 +58,10 @@
       background: #f5f5f4; color: #57534e;
     }
     .chip[aria-pressed="true"] { background: #1c1917; color: #fff; border-color: #1c1917; }
+    /* The mode is decided from the passage server-side, so for the first second
+       none of the chips is the active one. Dim the row rather than let it read
+       as "nothing is selected". */
+    .modes.pending .chip { opacity: .45; }
     .body { padding: 12px 14px 4px; }
     .summary { margin: 0 0 12px; font-size: 14.5px; }
     .section { margin: 0 0 12px; }
@@ -403,6 +407,7 @@
 
     setStatus(message) {
       if (!this.card) return;
+      this.card.modes.classList.toggle('pending', !this.mode);
       this.card.body.textContent = '';
       const status = document.createElement('div');
       status.className = 'status';
@@ -418,6 +423,7 @@
 
     setError(message) {
       if (!this.card) return;
+      this.card.modes.classList.remove('pending');
       this.card.body.textContent = '';
       const error = document.createElement('div');
       error.className = 'error';
@@ -454,6 +460,7 @@
         this.renderModes();
       }
 
+      this.card.modes.classList.remove('pending');
       this.card.body.textContent = '';
 
       if (data.summary) {
