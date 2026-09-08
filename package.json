@@ -19,10 +19,10 @@
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",
-    "next": "15.2.5",
+    "next": "^15.2.6",
     "pdf-lib": "^1.17.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-pdf": "^9.2.1"
   },
   "devDependencies": {
@@ -33,7 +33,7 @@
     "@types/react-dom": "^19",
     "archiver": "^7.0.1",
     "eslint": "^9",
-    "eslint-config-next": "15.2.5",
+    "eslint-config-next": "^15.2.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
