@@ -108,7 +108,15 @@ scripts/           builds dist-extension/ and public/extension.zip
 npm test            # unit tests, no framework dependency
 npm run typecheck   # tsc --noEmit
 npm run build       # production build
+npm run try sonnet  # run a passage against the live model
+npm run harness     # then open http://localhost:3000/_dev/index.html
 ```
+
+`npm run harness` runs the real content script in an ordinary page with a
+stand-in for the extension APIs, so selection handling, positioning, the card
+and mode switching can be exercised against the real API without loading
+anything into Chrome. It opens the shadow root in that copy so the DOM is
+inspectable.
 
 ## Notes and limitations
 

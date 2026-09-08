@@ -75,6 +75,9 @@
     }
     .line { font-style: italic; text-transform: none; letter-spacing: 0; font-size: 12.5px; }
     .text { margin: 0; white-space: pre-wrap; }
+    /* The summary carries both classes, and .text is defined after .summary,
+       so its margin has to be restored at a specificity that wins. */
+    .summary.text { margin-bottom: 14px; }
     .foot {
       display: flex; justify-content: space-between; align-items: center;
       padding: 8px 14px; border-top: 1px solid #e7e5e4;
@@ -206,6 +209,7 @@
       this.card = null;
       this.context = null;
       this.mode = null;
+      this.anchor = null;
 
       document.addEventListener('selectionchange', () => this.onSelectionChange());
       document.addEventListener('mousedown', (e) => this.onOutsideInteraction(e), true);
@@ -277,11 +281,19 @@
       this.root.appendChild(button);
       this.trigger = button;
 
-      const top = window.scrollY + rect.bottom + 8;
+      const below = window.innerHeight - rect.bottom > 44;
+      const top = below
+        ? window.scrollY + rect.bottom + 8
+        : window.scrollY + rect.top - 36;
       const left = window.scrollX + rect.left;
-      button.style.top = `${top}px`;
+      button.style.top = `${Math.max(window.scrollY + 4, top)}px`;
       button.style.left = `${Math.max(8, left)}px`;
-      requestAnimationFrame(() => button.classList.add('show'));
+      // Flush layout so the transition has a starting value, then reveal in the
+      // same task. requestAnimationFrame would be tidier, but it is throttled
+      // in background and inactive tabs, which leaves the pill stuck at zero
+      // opacity until the tab renders again.
+      void button.offsetWidth;
+      button.classList.add('show');
     }
 
     dismissTrigger() {
@@ -325,14 +337,40 @@
       this.root.appendChild(card);
       this.card = { el: card, modes, body };
 
-      const width = Math.min(420, window.innerWidth - 32);
-      let left = window.scrollX + rect.left;
-      left = Math.min(left, window.scrollX + window.innerWidth - width - 16);
-      card.style.left = `${Math.max(window.scrollX + 16, left)}px`;
-      card.style.top = `${window.scrollY + rect.bottom + 10}px`;
+      this.anchor = rect;
+      this.positionCard();
 
       this.renderModes();
       this.setStatus('Reading the passage…');
+    }
+
+    /**
+     * Place the card below the selection, flipping above when there is not
+     * room. This has to run again after the content lands: while the spinner
+     * is showing the card is a couple of lines tall, and deciding from that
+     * height puts a full-size result off the bottom of the screen.
+     */
+    positionCard() {
+      if (!this.card || !this.anchor) return;
+
+      const el = this.card.el;
+      const rect = this.anchor;
+      const gap = 10;
+
+      const width = Math.min(420, window.innerWidth - 32);
+      let left = window.scrollX + rect.left;
+      left = Math.min(left, window.scrollX + window.innerWidth - width - 16);
+      el.style.left = `${Math.max(window.scrollX + 16, left)}px`;
+
+      const height = el.offsetHeight;
+      const fitsBelow = window.innerHeight - rect.bottom >= height + gap;
+      const fitsAbove = rect.top >= height + gap;
+
+      const top = fitsBelow || !fitsAbove
+        ? window.scrollY + rect.bottom + gap
+        : window.scrollY + rect.top - height - gap;
+
+      el.style.top = `${Math.max(window.scrollY + 8, top)}px`;
     }
 
     renderModes() {
@@ -370,6 +408,8 @@
       text.textContent = message;
       status.append(spinner, text);
       this.card.body.appendChild(status);
+
+      this.positionCard();
     }
 
     setError(message) {
@@ -379,6 +419,8 @@
       error.className = 'error';
       error.textContent = message;
       this.card.body.appendChild(error);
+
+      this.positionCard();
     }
 
     request() {
@@ -433,11 +475,14 @@
         wrap.append(label, text);
         this.card.body.appendChild(wrap);
       }
+
+      this.positionCard();
     }
 
     closeCard() {
       this.card?.el.remove();
       this.card = null;
+      this.anchor = null;
     }
   }
 
