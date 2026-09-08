@@ -25,6 +25,10 @@ Rules:
   passage and its surroundings do not say what is being responded to, say that
   plainly. You may add background you know independently, but label it as
   background rather than reporting it as what the writer said.
+- The marked sentence may be a view the writer is reporting in order to reject
+  it - "it is argued that", "critics say", a claim quoted before being
+  answered. Say whose view it is and what the writer does with it. Never
+  present a reported view as the writer's own position.
 - If the writer does not mean what they literally say - irony, satire, sarcasm,
   a position stated only to demolish it - say so in the summary and in their
   position, not only in the tone. Never restate an ironic proposal as if it
@@ -160,7 +164,38 @@ export function parseExplanation(raw: string): Explanation | null {
       }
     }
   }
-  return null;
+
+  // Never closed - almost always a reply truncated at the token ceiling.
+  return salvage(text);
+}
+
+/**
+ * Recover what we can from a reply that was cut off mid-JSON.
+ *
+ * Long dense paragraphs can run past the token ceiling, leaving an object that
+ * never closes. The summary and the earlier sections are usually complete and
+ * perfectly useful; showing those beats showing the reader raw JSON.
+ */
+function salvage(text: string): Explanation | null {
+  const summaryMatch = /"summary"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(text);
+  const summary = summaryMatch ? unescapeJson(summaryMatch[1]) : '';
+
+  const sections: { label: string; body: string }[] = [];
+  const pair = /"label"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"body"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  for (const match of text.matchAll(pair)) {
+    sections.push({ label: unescapeJson(match[1]), body: unescapeJson(match[2]) });
+  }
+
+  if (!summary && sections.length === 0) return null;
+  return { summary, sections };
+}
+
+function unescapeJson(value: string): string {
+  try {
+    return JSON.parse(`"${value}"`) as string;
+  } catch {
+    return value.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+  }
 }
 
 function coerce(candidate: string): Explanation | null {

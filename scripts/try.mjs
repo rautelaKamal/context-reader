@@ -135,7 +135,7 @@ const res = await fetch(`${BASE}/chat/completions`, {
   body: JSON.stringify({
     model: MODEL,
     messages,
-    max_tokens: mode === 'lines' ? 1200 : 700,
+    max_tokens: mode === 'lines' ? 1400 : 1100,
     temperature: 0.1,
     ...(process.env.EFFORT ? { reasoning_effort: process.env.EFFORT } : {}),
   }),

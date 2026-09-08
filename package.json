@@ -15,7 +15,8 @@
     "test": "node scripts/test.mjs",
     "try": "node scripts/try.mjs",
     "harness": "node scripts/harness.mjs",
-    "eval": "node scripts/eval.mjs"
+    "eval": "node scripts/eval.mjs",
+    "corpus": "node scripts/corpus.mjs"
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",

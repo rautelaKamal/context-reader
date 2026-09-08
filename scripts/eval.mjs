@@ -174,6 +174,95 @@ const CASES = [
     },
     expect: [/shade|shadow|traveller|traveler|useless|no use|benefit|serve/i],
   },
+  {
+    name: 'steelman-attribution',
+    why: 'The selection is an opposing view the writer quotes in order to demolish it. Attributing it to the writer inverts the editorial.',
+    mode: 'point',
+    context: {
+      selection: 'The fee hike, it is said, merely corrects years of artificial under-pricing.',
+      markedParagraph: '«The fee hike, it is said, merely corrects years of artificial under-pricing.» That would be easier to accept had the same institutions not reported record surpluses in each of the last three years.',
+      precedingParagraph: 'Students across four campuses have been on strike since Monday over a near-doubling of tuition.',
+      title: 'Who pays for the shortfall',
+      site: 'thehindu.com',
+      url: 'https://www.thehindu.com/opinion/editorial/who-pays/article1.ece',
+    },
+    expect: [/report(ing|s|ed)? (an|a|the)? ?(other|opposing|counter)|not the writer|writer (rejects|disputes|disagrees|does not)|attribut|others (say|argue|claim)|being (quoted|cited)|reject|dispute|undercut|rebut|disagree/i],
+  },
+  {
+    name: 'enjambment-autumn',
+    why: 'Verse whose clauses run across line breaks, and which never names its subject. Naming the season proves it read the whole passage, not four isolated lines.',
+    context: {
+      selection: 'Season of mists and mellow fruitfulness,\nClose bosom-friend of the maturing sun;\nConspiring with him how to load and bless\nWith fruit the vines that round the thatch-eves run;',
+      markedParagraph: '«Season of mists and mellow fruitfulness,\nClose bosom-friend of the maturing sun;\nConspiring with him how to load and bless\nWith fruit the vines that round the thatch-eves run;»',
+      title: 'To Autumn',
+    },
+    expect: [/autumn|fall\b/i],
+  },
+  {
+    name: 'litotes-negation',
+    why: 'Double negative. "Not unreasonable to suppose" means it IS likely - reading the surface negation inverts the accusation.',
+    mode: 'plain',
+    context: {
+      selection: 'It is not unreasonable to suppose that the Board was aware of the discrepancy well before it was reported.',
+      markedParagraph: '«It is not unreasonable to suppose that the Board was aware of the discrepancy well before it was reported.» The internal audit trail suggests as much.',
+      title: 'What the audit shows',
+      site: 'thehindu.com',
+    },
+    expect: [/reasonable|likely|probabl|plausib|certain|no doubt|makes (total |perfect )?sense|fair to (assume|suppose)|good reason|knew|aware/i],
+    reject: [/unlikely|improbable|no reason to (think|believe|suppose)|unreasonable to (suppose|assume|think)/i],
+  },
+  {
+    name: 'legal-prefer',
+    why: 'In Indian legal English "prefer an appeal" means to file one, not to favour it.',
+    mode: 'jargon',
+    context: {
+      selection: 'the aggrieved party may prefer an appeal within thirty days of the order',
+      markedParagraph: 'Section 14 provides that «the aggrieved party may prefer an appeal within thirty days of the order», failing which the decision attains finality.',
+      title: 'Tribunal procedure',
+    },
+    expect: [/file|lodge|submit|bring|institut|initiat|present an appeal|make an appeal/i],
+    reject: [/prefers? (it|one|this|that|an appeal) (over|to|rather)|would rather|favour(s|ed)? an appeal|choose an appeal/i],
+  },
+  {
+    name: 'short-selection',
+    why: 'Two words. Everything that makes them meaningful is in the surrounding sentences.',
+    mode: 'plain',
+    context: {
+      selection: 'He knew.',
+      markedParagraph: 'The minister was briefed on the revenue shortfall in March. «He knew.» The denial issued in June is therefore not merely mistaken but dishonest.',
+      precedingParagraph: 'The Ministry has insisted throughout that the scale of the gap only became apparent this autumn.',
+      title: 'A question of candour',
+      site: 'thehindu.com',
+    },
+    expect: [/minister/i, /brief|March|shortfall|revenue/i],
+  },
+  {
+    name: 'statistical-significant',
+    why: '"Significant" here is the statistical term, not the everyday one. Glossing it as "important" is the standard error.',
+    mode: 'jargon',
+    context: {
+      selection: 'the difference was significant (p < 0.01) but small in absolute terms',
+      markedParagraph: 'Across the full cohort «the difference was significant (p < 0.01) but small in absolute terms», amounting to under two percentage points.',
+      title: 'Trial results',
+      site: 'nature.com',
+      url: 'https://www.nature.com/articles/s41586-024-00001',
+    },
+    expect: [/statistic|chance|random|coincidence|p-?value|probabilit/i],
+  },
+  {
+    name: 'sarcasm-letter',
+    why: 'A letter to the editor whose gratitude is sarcastic. Reading it as praise inverts the complaint.',
+    mode: 'point',
+    context: {
+      selection: 'One is grateful to the Corporation for finally repairing the road, a mere three monsoons after it dissolved.',
+      markedParagraph: 'Sir — «One is grateful to the Corporation for finally repairing the road, a mere three monsoons after it dissolved.» Residents await news of the drains with similar optimism.',
+      title: 'Letters to the Editor',
+      site: 'thehindu.com',
+      url: 'https://www.thehindu.com/opinion/letters/june-04/article9.ece',
+    },
+    expect: [/sarcas|iron|not (really |actually )?grateful|mock|criticis|criticiz|complain|rebuk|scath|bitter/i],
+    reject: [/genuine(ly)? (grateful|thankful|praise|pleased)|sincere(ly)? (grateful|thanks|praise)|expressing (real|honest) (thanks|gratitude)/i],
+  },
 ];
 
 const filter = process.argv.slice(2).find((a) => !a.startsWith('--'));
@@ -192,21 +281,37 @@ for (const [i, testCase] of cases.entries()) {
   });
 
   let raw = '';
-  try {
-    const res = await fetch(`${BASE}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: buildMessages(mode, testCase.context),
-        max_tokens: mode === 'lines' ? 1200 : 700,
-        temperature: 0.1,
-      }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    raw = (await res.json()).choices?.[0]?.message?.content ?? '';
-  } catch (error) {
-    console.log(`✗ ${testCase.name} [${mode}] - request failed: ${error.message}\n`);
+  let lastError = null;
+  // The free tier throws transient 503s. Those are not model failures, so
+  // retry a couple of times before scoring one as a miss.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${BASE}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: buildMessages(mode, testCase.context),
+          max_tokens: mode === 'lines' ? 1400 : 1100,
+          temperature: 0.1,
+        }),
+      });
+      if (res.status === 503 || res.status === 429) {
+        lastError = new Error(`HTTP ${res.status}`);
+        await sleep(6000 * (attempt + 1));
+        continue;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      raw = (await res.json()).choices?.[0]?.message?.content ?? '';
+      lastError = null;
+      break;
+    } catch (error) {
+      lastError = error;
+      await sleep(3000);
+    }
+  }
+  if (lastError) {
+    console.log(`✗ ${testCase.name} [${mode}] - request failed: ${lastError.message}\n`);
     failed++; failures.push(testCase.name);
     continue;
   }

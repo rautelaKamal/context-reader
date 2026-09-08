@@ -89,6 +89,29 @@ test('model output parsing', async (t) => {
     assert.equal(parseExplanation('This passage means the writer is unhappy.'), null);
   });
 
+  await t.test('salvages a reply truncated mid-string', () => {
+    // What a real article produced when it ran past the token ceiling.
+    const truncated = '{\n "summary": "India will struggle to attract investment.",\n' +
+      ' "sections": [\n  {\n   "label": "Their position",\n' +
+      '   "body": "Because Western governments are paying high interest rates to';
+    const result = parseExplanation(truncated);
+    assert.equal(result.summary, 'India will struggle to attract investment.');
+    assert.equal(result.sections.length, 0); // the incomplete one is dropped
+  });
+
+  await t.test('keeps whole sections from a truncated reply', () => {
+    const truncated = '{"summary":"S","sections":[{"label":"A","body":"one"},' +
+      '{"label":"B","body":"two"},{"label":"C","body":"thr';
+    const result = parseExplanation(truncated);
+    assert.equal(result.summary, 'S');
+    assert.deepEqual(result.sections, [{ label: 'A', body: 'one' }, { label: 'B', body: 'two' }]);
+  });
+
+  await t.test('unescapes correctly when salvaging', () => {
+    const truncated = '{"summary":"he said \\"no\\" and left","sections":[{"label":"A","body":"x';
+    assert.equal(parseExplanation(truncated).summary, 'he said "no" and left');
+  });
+
   await t.test('drops sections missing a body', () => {
     assert.deepEqual(
       parseExplanation('{"summary":"a","sections":[{"label":"L"},{"label":"M","body":"B"}]}'),

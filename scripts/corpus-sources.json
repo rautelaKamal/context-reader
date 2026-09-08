@@ -1,0 +1,49 @@
+[
+  {
+    "name": "The Hindu editorial \u2014 Nepal flood (browser-captured)",
+    "localFile": "/private/tmp/claude-501/-Users-kamalrautela-Desktop-Draw-App/d289992c-c756-43e4-a8b8-a66bed1c6925/scratchpad/corpus/hindu-nepal.json",
+    "title": "Danger from above: On the Nepal flood",
+    "site": "thehindu.com",
+    "url": "https://www.thehindu.com/opinion/editorial/danger-from-above/article71396710.ece",
+    "take": 1
+  },
+  {
+    "name": "Indian Express \u2014 conscious AI",
+    "site": "indianexpress.com",
+    "title": "Conscious AI and the ethics of a machine that feels",
+    "url": "https://indianexpress.com/article/opinion/editorials/conscious-ai-and-the-ethics-of-a-machine-that-feels-10867361/",
+    "take": 2
+  },
+  {
+    "name": "Indian Express \u2014 economy",
+    "site": "indianexpress.com",
+    "title": "Economy weathers a storm but more turbulence lies ahead",
+    "url": "https://indianexpress.com/article/opinion/editorials/economy-weathers-a-storm-but-more-turbulence-lies-ahead-10863766/",
+    "take": 2
+  },
+  {
+    "name": "Indian Express \u2014 Delhi building collapse",
+    "site": "indianexpress.com",
+    "title": "Delhi building collapse and student safety",
+    "url": "https://indianexpress.com/article/opinion/editorials/delhi-satya-niketan-building-collapse-student-safety-10867627/",
+    "take": 2
+  },
+  {
+    "name": "Austen \u2014 Pride and Prejudice",
+    "site": "gutenberg.org",
+    "title": "Pride and Prejudice",
+    "url": "https://www.gutenberg.org/cache/epub/1342/pg1342.txt",
+    "plainText": true,
+    "startAt": "It is a truth universally acknowledged",
+    "take": 2
+  },
+  {
+    "name": "Ibsen \u2014 A Doll's House",
+    "site": "gutenberg.org",
+    "title": "A Doll's House",
+    "url": "https://www.gutenberg.org/cache/epub/2542/pg2542.txt",
+    "plainText": true,
+    "startAt": "HELMER",
+    "take": 2
+  }
+]
