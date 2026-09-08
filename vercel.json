@@ -1,5 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run build && npm run package-extension",
-  "regions": ["bom1"]
+  "buildCommand": "npm run build && npm run package-extension"
 }
