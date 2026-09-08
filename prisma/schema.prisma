@@ -32,3 +32,10 @@ model Annotation {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
+
+// The annotation history feature this models is not built yet, so the Prisma
+// client is not a dependency: an unused import of it failed the production
+// build on a clean install. The schema stays because the design is the useful
+// part. To pick it up again:
+//
+//   npm install prisma @prisma/client && npx prisma generate

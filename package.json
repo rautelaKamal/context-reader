@@ -9,7 +9,6 @@
     "start": "next start",
     "lint": "next lint",
     "package-extension": "node scripts/package-extension.js",
-    "prisma:deploy": "prisma migrate deploy",
     "build:extension": "node scripts/package-extension.js",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",
@@ -20,7 +19,6 @@
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",
-    "@prisma/client": "^6.6.0",
     "next": "15.2.5",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
@@ -36,7 +34,6 @@
     "archiver": "^7.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.2.5",
-    "prisma": "^6.6.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
