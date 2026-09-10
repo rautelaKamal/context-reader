@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1200px; height: 1200px; background: #f3f4f0; color: #151a2d;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding: 72px 76px; display: flex; flex-direction: column;
+  }
+  .src { font-size: 22px; color: #545a6b; margin-bottom: 18px; }
+  .quote {
+    font-family: Literata, Georgia, serif; font-size: 34px; line-height: 1.45;
+    padding-bottom: 40px; border-bottom: 2px solid #d7d9d1;
+  }
+  .block { padding: 44px 0; border-bottom: 2px solid #d7d9d1; }
+  /* .foot is also a div, so :last-of-type would match that instead. */
+  .block.last { border-bottom: 0; }
+  .tag { font-size: 24px; font-weight: 600; margin-bottom: 18px; }
+  .tag.bad { color: #b91c1c; }
+  .tag.good { color: #2f6b3a; }
+  .said {
+    font-family: Literata, Georgia, serif;
+    font-size: 46px; line-height: 1.35; font-weight: 600;
+  }
+  .said span { padding: 2px 8px; border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .bad span { background: #fecaca; }
+  .good span { background: #cfcbf2; }
+  .lesson {
+    margin-top: 8px; padding-top: 0; border-top: 0;
+    font-family: Literata, Georgia, serif; font-size: 38px; line-height: 1.42;
+  }
+  .lesson .dim { color: #545a6b; }
+  .foot {
+    margin-top: auto; padding-top: 34px; border-top: 2px solid #d7d9d1;
+    display: flex; justify-content: space-between; font-size: 23px; color: #545a6b;
+  }
+  .foot b { color: #151a2d; font-weight: 600; }
+</style>
+
+<p class="src">Jonathan Swift, A Modest Proposal, 1729</p>
+<p class="quote">&ldquo;A young healthy child well nursed is at a year old a most delicious, nourishing, and wholesome food.&rdquo;</p>
+
+<div class="block">
+  <p class="tag bad">What my tool said it meant</p>
+  <p class="said bad"><span>Human babies make excellent, nutritious food when they reach one year of age.</span></p>
+</div>
+
+<div class="block last">
+  <p class="tag good">After one sentence changed in the prompt</p>
+  <p class="said good"><span>The writer does not literally believe that children should be eaten.</span></p>
+</div>
+
+<p class="lesson">
+  <span class="dim">It passed on the first test run.</span>
+  I only caught it because I ran the same case three times.
+</p>
+
+<div class="foot">
+  <span><b>ContextReader</b> &nbsp;explains what a writer means</span>
+  <span>context-reader.vercel.app</span>
+</div>
