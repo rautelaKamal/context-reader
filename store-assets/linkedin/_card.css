@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  /* Both panels share one height so the pair reads as a controlled
+     comparison rather than two screengrabs. Sized to the taller of the two. */
+  width: 1200px; height: 760px;
+  background: #f3f4f0;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: #151a2d;
+  display: flex; flex-direction: column;
+  padding: 54px 60px;
+}
+
+.stamp {
+  font-size: 21px; font-weight: 600; letter-spacing: -0.01em;
+  display: flex; align-items: baseline; gap: 14px;
+}
+.stamp .state { color: var(--accent); }
+.stamp .rule { flex: 1; height: 1px; background: #d7d9d1; }
+
+.passage {
+  font-family: Literata, Georgia, serif;
+  font-size: 25px; line-height: 1.55;
+  margin-top: 30px; max-width: 42ch;
+}
+.passage .cite { display: block; font-family: 'IBM Plex Sans'; font-size: 17px; color: #545a6b; margin-top: 14px; }
+
+/* the extension's card, as it actually renders */
+.card {
+  margin-top: 30px;
+  background: #1c1917; color: #f5f5f4;
+  border: 1px solid #44403c; border-radius: 14px;
+  overflow: hidden;
+}
+.modes { display: flex; gap: 9px; flex-wrap: wrap; padding: 20px 24px; border-bottom: 1px solid #44403c; }
+.chip {
+  font-size: 17px; padding: 8px 14px; border-radius: 999px;
+  background: #292524; color: #d6d3d1; border: 1px solid #44403c;
+}
+.chip.on { background: #f5f5f4; color: #1c1917; border-color: #f5f5f4; }
+.body { padding: 24px 26px 26px; }
+.summary { font-size: 22px; line-height: 1.5; margin-bottom: 22px; }
+.label {
+  font-size: 15px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: #a8a29e; margin-bottom: 6px;
+}
+.text { font-size: 20px; line-height: 1.5; margin-bottom: 20px; }
+.text:last-child { margin-bottom: 0; }
+.text em { font-style: normal; background: var(--mark); color: #1c1917; padding: 1px 4px; border-radius: 2px; }
+
+.foot { margin-top: auto; padding-top: 22px; font-size: 18px; color: #545a6b; }
