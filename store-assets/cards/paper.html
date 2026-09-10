@@ -3,7 +3,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    width: 1200px; height: 986px; background: #f3f4f0; color: #151a2d;
+    width: 1200px; height: 953px; background: #f3f4f0; color: #151a2d;
     font-family: 'IBM Plex Sans', system-ui, sans-serif;
     padding: 60px 66px; display: flex; flex-direction: column;
   }
@@ -31,6 +31,6 @@
 <div class="stage"><p class="quote"><span class="dim">In each decoder layer </span><mark>we compute scaled dot-product attention over the key-value pairs, masking future positions</mark><span class="dim"> so that predictions depend only on known outputs.</span></p></div>
 <div class="card">
   <div class="modes"><span class="chip">Plain meaning</span><span class="chip">What&rsquo;s the point?</span><span class="chip">Line by line</span><span class="chip">How it works</span><span class="chip on">The jargon</span></div>
-  <div class="body"><p class="summary">The model calculates how much attention to pay to different parts of the text («scaled dot-product attention over the key-value pairs»), but blocks it from looking ahead at words it hasn&#x27;t generated yet («masking future positions»).</p><div class="row"><p class="label">decoder layer</p><p class="gloss">Outside this passage: part of the neural network responsible for generating the output text one piece at a time.</p></div><div class="row"><p class="label">scaled dot-product attention</p><p class="gloss">A mathematical formula used to calculate the relationship between different words by multiplying their numerical representations together and scaling the result.</p></div><div class="row"><p class="label">key-value pairs</p><p class="gloss">Data structures where one piece of information (the key) is used to find or match against another piece of information (the value) inside the model&#x27;s memory.</p></div></div>
+  <div class="body"><p class="summary">The model calculates attention scores for the existing data while deliberately blocking it from looking ahead at words it hasn&#x27;t generated yet.</p><div class="row"><p class="label">decoder layer</p><p class="gloss">A structural block in the neural network responsible for generating the final output sequence, one piece at a time.</p></div><div class="row"><p class="label">scaled dot-product attention</p><p class="gloss">A mathematical formula that measures how much focus one part of the text should place on other parts, adjusted by a scaling factor to keep the numbers stable.</p></div><div class="row"><p class="label">key-value pairs</p><p class="gloss">Stored representations of the input data that the model searches through (&quot;keys&quot;) and retrieves information from (&quot;values&quot;).</p></div></div>
 </div>
 <div class="foot"><span>ContextReader &mdash; explains what a writer means</span><span>context-reader.vercel.app</span></div>
