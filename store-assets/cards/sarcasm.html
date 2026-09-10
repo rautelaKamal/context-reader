@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1200px; height: 984px; background: #f3f4f0; color: #151a2d;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding: 60px 66px; display: flex; flex-direction: column;
+  }
+  .top { display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px; }
+  .kind { font-family: Literata, serif; font-size: 28px; font-weight: 600; }
+  .src { font-size: 22px; color: #545a6b; }
+  .stage { flex-shrink: 0; background: #fffdf9; border: 1px solid #d7d9d1; border-radius: 12px; padding: 30px 34px; }
+  .quote { font-family: Literata, Georgia, serif; font-size: 29px; line-height: 1.5; }
+  .quote mark { background: #cfcbf2; color: inherit; padding: 2px 0; }
+  .quote .dim { color: #6b7280; }
+  .card { flex-shrink: 0; margin-top: 22px; background: #1c1917; color: #f5f5f4; border-radius: 12px; overflow: hidden; }
+  .modes { display: flex; gap: 8px; padding: 18px 22px; border-bottom: 1px solid #44403c; }
+  .chip { font-size: 18px; padding: 8px 14px; border-radius: 999px; background: #292524; color: #d6d3d1; }
+  .chip.on { background: #f5f5f4; color: #1c1917; }
+  .body { padding: 24px 26px 26px; }
+  .summary { font-size: 23px; line-height: 1.45; margin-bottom: 20px; }
+  .row { margin-bottom: 16px; }
+  .row:last-child { margin-bottom: 0; }
+  .label { font-size: 19px; color: #a8a29e; margin-bottom: 4px; }
+  .label.line { font-family: Literata, serif; font-style: italic; }
+  .gloss { font-size: 22px; line-height: 1.45; }
+  .foot { margin-top: auto; padding-top: 26px; display: flex; justify-content: space-between; font-size: 21px; color: #545a6b; }
+</style>
+<div class="top"><span class="kind">Sarcasm</span><span class="src">A letter to the editor</span></div>
+<div class="stage"><p class="quote"><span class="dim">Sir — </span><mark>One is grateful to the Corporation for finally repairing the road, a mere three monsoons after it dissolved.</mark><span class="dim"> Residents await news of the drains with similar optimism.</span></p></div>
+<div class="card">
+  <div class="modes"><span class="chip">Plain meaning</span><span class="chip on">What&rsquo;s the point?</span><span class="chip">Line by line</span><span class="chip">How it works</span><span class="chip">The jargon</span></div>
+  <div class="body"><p class="summary">The writer is using heavy sarcasm to attack the Corporation for taking an absurdly long time to fix the road.</p><div class="row"><p class="label">Their position</p><p class="gloss">The writer is not actually grateful; they believe the Corporation is shockingly slow and incompetent. The literal words—&quot;One is grateful&quot;—mean the exact opposite of what the writer intends, delivered via sarcastic exaggeration (&quot;a mere three monsoons&quot;).</p></div><div class="row"><p class="label">Responding to</p><p class="gloss">The surrounding text does not state which specific Corporation or road is being addressed, only that residents are also waiting for the drains to be repaired.</p></div><div class="row"><p class="label">Tone</p><p class="gloss">Sardonic and mocking—carried by the fake politeness of &quot;One is grateful&quot; coupled with the extreme exaggeration of &quot;a mere three monsoons after it dissolved&quot;.</p></div></div>
+</div>
+<div class="foot"><span>ContextReader &mdash; explains what a writer means</span><span>context-reader.vercel.app</span></div>
