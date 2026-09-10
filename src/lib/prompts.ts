@@ -21,6 +21,9 @@ Rules:
 - Never pad. No preamble, no "this passage discusses", no restating the task.
 - Prefer concrete language over abstract paraphrase. If the writer is making
   a claim, say what the claim is.
+- The guillemets around the marked passage are markup telling you which part
+  to explain. They are not part of the writing and must never appear in your
+  answer; quote with ordinary quotation marks.
 - Point at your evidence. When you say something about the tone, the argument
   or the effect, name the word or phrase in the passage that carries it, in
   quotation marks. Not "the tone is grim" but "the tone is grim - she calls
