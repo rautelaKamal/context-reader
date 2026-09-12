@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1280px; height: 800px; background: #f3f4f0; color: #151a2d;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding: 44px 50px; display: flex; flex-direction: column;
+  }
+  .top { display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px; }
+  .kind { font-family: Literata, serif; font-size: 24px; font-weight: 600; }
+  .src { font-size: 19px; color: #545a6b; }
+  .stage { flex-shrink: 0; background: #fffdf9; border: 1px solid #d7d9d1; border-radius: 12px; padding: 30px 34px; }
+  .quote { font-family: Literata, Georgia, serif; font-size: 25px; line-height: 1.5; }
+  .quote mark { background: #cfcbf2; color: inherit; padding: 2px 0; }
+  .quote .dim { color: #6b7280; }
+  .card { flex-shrink: 0; margin-top: 22px; background: #1c1917; color: #f5f5f4; border-radius: 12px; overflow: hidden; }
+  .modes { display: flex; gap: 8px; padding: 18px 22px; border-bottom: 1px solid #44403c; }
+  .chip { font-size: 16px; padding: 8px 14px; border-radius: 999px; background: #292524; color: #d6d3d1; }
+  .chip.on { background: #f5f5f4; color: #1c1917; }
+  .body { padding: 24px 26px 26px; }
+  .summary { font-size: 20px; line-height: 1.45; margin-bottom: 16px; }
+  .row { margin-bottom: 16px; }
+  .row:last-child { margin-bottom: 0; }
+  .label { font-size: 17px; color: #a8a29e; margin-bottom: 4px; }
+  .label.line { font-family: Literata, serif; font-style: italic; }
+  .gloss { font-size: 19px; line-height: 1.45; }
+  .foot { margin-top: auto; padding-top: 22px; display: flex; justify-content: space-between; font-size: 18px; color: #545a6b; }
+</style>
+<div class="top"><span class="kind">Verse</span><span class="src">Shakespeare, Sonnet 18</span></div>
+<div class="stage"><p class="quote"><mark>Shall I compare thee to a summer&#x27;s day?<br>Thou art more lovely and more temperate:<br>Rough winds do shake the darling buds of May,</mark></p></div>
+<div class="card">
+  <div class="modes"><span class="chip">Plain meaning</span><span class="chip">What&rsquo;s the point?</span><span class="chip on">Line by line</span><span class="chip">How it works</span></div>
+  <div class="body"><p class="summary">The speaker opens by asking whether to liken their beloved to a summer&#x27;s day, immediately deciding the beloved is superior because summer has flaws that the beloved avoids. The tone is reflective and complimentary, driven by the rhetorical question &quot;Shall I compare thee&quot; and the word &quot;temperate&quot;.</p><div class="row"><p class="label line">Shall I compare thee to a summer&#x27;s day?</p><p class="gloss">The speaker poses a question to start the poem: should I liken you to a day in summer?</p></div><div class="row"><p class="label line">Thou art more lovely and more temperate:</p><p class="gloss">The speaker answers their own question, claiming the beloved is both better-looking (&quot;more lovely&quot;) and calmer and more balanced (&quot;more temperate&quot;) than a summer day.</p></div></div>
+</div>
+<div class="foot"><span>ContextReader &mdash; explains what a writer means</span><span>context-reader.vercel.app</span></div>

@@ -11,9 +11,16 @@ clipped the card or left a third of the frame empty.
 """
 import html, json, os, re, struct, subprocess, sys, zlib
 
+# The Chrome Web Store accepts screenshots at exactly 1280x800 or 640x400, so
+# the store variant is a fixed canvas rather than one measured to its content.
+STORE = "--store" in sys.argv
+W, H = (1280, 800) if STORE else (1200, None)
+MAX_SECTIONS = 2 if STORE else 3
+
 API = "https://context-reader.vercel.app/api/explain"
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-OUT = os.path.join(os.path.dirname(__file__), "..", "store-assets", "cards")
+OUT = os.path.join(os.path.dirname(__file__), "..", "store-assets",
+                   "screenshots" if "--store" in sys.argv else "cards")
 
 CASES = [
     {
@@ -52,29 +59,29 @@ TEMPLATE = """<!doctype html><meta charset="utf-8">
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    width: 1200px; height: {height}; background: #f3f4f0; color: #151a2d;
+    width: {width}px; height: {height}; background: #f3f4f0; color: #151a2d;
     font-family: 'IBM Plex Sans', system-ui, sans-serif;
-    padding: 60px 66px; display: flex; flex-direction: column;
+    padding: 44px 50px; display: flex; flex-direction: column;
   }}
   .top {{ display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px; }}
-  .kind {{ font-family: Literata, serif; font-size: 28px; font-weight: 600; }}
-  .src {{ font-size: 22px; color: #545a6b; }}
+  .kind {{ font-family: Literata, serif; font-size: 24px; font-weight: 600; }}
+  .src {{ font-size: 19px; color: #545a6b; }}
   .stage {{ flex-shrink: 0; background: #fffdf9; border: 1px solid #d7d9d1; border-radius: 12px; padding: 30px 34px; }}
-  .quote {{ font-family: Literata, Georgia, serif; font-size: 29px; line-height: 1.5; }}
+  .quote {{ font-family: Literata, Georgia, serif; font-size: 25px; line-height: 1.5; }}
   .quote mark {{ background: #cfcbf2; color: inherit; padding: 2px 0; }}
   .quote .dim {{ color: #6b7280; }}
   .card {{ flex-shrink: 0; margin-top: 22px; background: #1c1917; color: #f5f5f4; border-radius: 12px; overflow: hidden; }}
   .modes {{ display: flex; gap: 8px; padding: 18px 22px; border-bottom: 1px solid #44403c; }}
-  .chip {{ font-size: 18px; padding: 8px 14px; border-radius: 999px; background: #292524; color: #d6d3d1; }}
+  .chip {{ font-size: 16px; padding: 8px 14px; border-radius: 999px; background: #292524; color: #d6d3d1; }}
   .chip.on {{ background: #f5f5f4; color: #1c1917; }}
   .body {{ padding: 24px 26px 26px; }}
-  .summary {{ font-size: 23px; line-height: 1.45; margin-bottom: 20px; }}
+  .summary {{ font-size: 20px; line-height: 1.45; margin-bottom: 16px; }}
   .row {{ margin-bottom: 16px; }}
   .row:last-child {{ margin-bottom: 0; }}
-  .label {{ font-size: 19px; color: #a8a29e; margin-bottom: 4px; }}
+  .label {{ font-size: 17px; color: #a8a29e; margin-bottom: 4px; }}
   .label.line {{ font-family: Literata, serif; font-style: italic; }}
-  .gloss {{ font-size: 22px; line-height: 1.45; }}
-  .foot {{ margin-top: auto; padding-top: 26px; display: flex; justify-content: space-between; font-size: 21px; color: #545a6b; }}
+  .gloss {{ font-size: 19px; line-height: 1.45; }}
+  .foot {{ margin-top: auto; padding-top: 22px; display: flex; justify-content: space-between; font-size: 18px; color: #545a6b; }}
 </style>
 <div class="top"><span class="kind">{kind}</span><span class="src">{source}</span></div>
 <div class="stage"><p class="quote">{quote}</p></div>
@@ -158,7 +165,7 @@ def content_height(path):
 def shoot(src, dst, height, scale=2):
     subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars",
                     f"--force-device-scale-factor={scale}",
-                    f"--window-size=1200,{height}", f"--screenshot={dst}",
+                    f"--window-size={W},{height}", f"--screenshot={dst}",
                     f"file://{os.path.abspath(src)}"], capture_output=True)
 
 
@@ -176,19 +183,23 @@ for case in CASES:
     rows = "".join(
         f'<div class="row"><p class="label{" line" if data["mode"] == "lines" else ""}">'
         f'{html.escape(s["label"])}</p><p class="gloss">{html.escape(s["body"])}</p></div>'
-        for s in data["sections"][:3])
+        for s in data["sections"][:MAX_SECTIONS])
 
-    page = TEMPLATE.format(height="auto", kind=html.escape(case["kind"]),
+    page = TEMPLATE.format(width=W, height="auto", kind=html.escape(case["kind"]),
                            source=html.escape(case["source"]), quote=build_quote(case),
                            chips=chips, summary=summary, rows=rows)
     src = os.path.join(OUT, f"{case['slug']}.html")
     open(src, "w").write(page)
 
-    probe = os.path.join(OUT, "_probe.png")
-    shoot(src, probe, 2200, scale=1)
-    h = content_height(probe) + 60          # bottom padding
-    os.remove(probe)
-
-    open(src, "w").write(page.replace('height: auto;', f'height: {h}px;'))
-    shoot(src, os.path.join(OUT, f"{case['slug']}.png"), h)
+    if STORE:
+        h = H
+        open(src, "w").write(page.replace('height: auto;', f'height: {h}px;'))
+        shoot(src, os.path.join(OUT, f"{case['slug']}.png"), h, scale=1)
+    else:
+        probe = os.path.join(OUT, "_probe.png")
+        shoot(src, probe, 2200, scale=1)
+        h = content_height(probe) + 60      # bottom padding
+        os.remove(probe)
+        open(src, "w").write(page.replace('height: auto;', f'height: {h}px;'))
+        shoot(src, os.path.join(OUT, f"{case['slug']}.png"), h)
     print(f"  {case['slug']:10} [{data['mode']:6}] {h}px  {len(data['sections'])} sections")

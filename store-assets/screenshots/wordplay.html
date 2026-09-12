@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1280px; height: 800px; background: #f3f4f0; color: #151a2d;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding: 44px 50px; display: flex; flex-direction: column;
+  }
+  .top { display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px; }
+  .kind { font-family: Literata, serif; font-size: 24px; font-weight: 600; }
+  .src { font-size: 19px; color: #545a6b; }
+  .stage { flex-shrink: 0; background: #fffdf9; border: 1px solid #d7d9d1; border-radius: 12px; padding: 30px 34px; }
+  .quote { font-family: Literata, Georgia, serif; font-size: 25px; line-height: 1.5; }
+  .quote mark { background: #cfcbf2; color: inherit; padding: 2px 0; }
+  .quote .dim { color: #6b7280; }
+  .card { flex-shrink: 0; margin-top: 22px; background: #1c1917; color: #f5f5f4; border-radius: 12px; overflow: hidden; }
+  .modes { display: flex; gap: 8px; padding: 18px 22px; border-bottom: 1px solid #44403c; }
+  .chip { font-size: 16px; padding: 8px 14px; border-radius: 999px; background: #292524; color: #d6d3d1; }
+  .chip.on { background: #f5f5f4; color: #1c1917; }
+  .body { padding: 24px 26px 26px; }
+  .summary { font-size: 20px; line-height: 1.45; margin-bottom: 16px; }
+  .row { margin-bottom: 16px; }
+  .row:last-child { margin-bottom: 0; }
+  .label { font-size: 17px; color: #a8a29e; margin-bottom: 4px; }
+  .label.line { font-family: Literata, serif; font-style: italic; }
+  .gloss { font-size: 19px; line-height: 1.45; }
+  .foot { margin-top: auto; padding-top: 22px; display: flex; justify-content: space-between; font-size: 18px; color: #545a6b; }
+</style>
+<div class="top"><span class="kind">Wordplay</span><span class="src">Shakespeare, Richard III</span></div>
+<div class="stage"><p class="quote"><mark>Now is the winter of our discontent<br>Made glorious summer by this sun of York;</mark></p></div>
+<div class="card">
+  <div class="modes"><span class="chip">Plain meaning</span><span class="chip">What&rsquo;s the point?</span><span class="chip">Line by line</span><span class="chip on">How it works</span></div>
+  <div class="body"><p class="summary">Richard establishes the play&#x27;s triumphant mood and his own cynical opportunism by mapping a political regime change directly onto the seasonal cycle through weather metaphors.</p><div class="row"><p class="label">winter of our discontent</p><p class="gloss">This phrase uses the cold, barren season as a direct synonym for the misery of the previous Lancastrian rule, preparing the reader for a metaphorical temperature shift.</p></div><div class="row"><p class="label">glorious summer</p><p class="gloss">By pairing this phrase with the previous &quot;winter&quot;, the text frames the new Yorkist victory not just as a political event, but as a complete biological and emotional thaw.</p></div></div>
+</div>
+<div class="foot"><span>ContextReader &mdash; explains what a writer means</span><span>context-reader.vercel.app</span></div>
