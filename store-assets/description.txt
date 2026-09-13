@@ -1,74 +1,92 @@
 === NAME ===
-ContextReader — understand what the writer means
+ContextReader — explain a poem, an editorial, a paper
 
-=== SHORT DESCRIPTION (132 char max) ===
-Select a passage that lost you. Get what the writer actually means, read in context, without leaving the page.
+=== SHORT DESCRIPTION (132 max) ===
+Select a poem, an editorial or a dense paragraph and see what the writer actually means — read in context, on the page.
 
 === DETAILED DESCRIPTION ===
 Some sentences stop you even though you know every word in them.
 
-An editorial whose argument you cannot quite pin down. A line of Shakespeare.
-A paragraph in a paper outside your field. A poem that clearly means something
+A line of Shakespeare. A newspaper editorial whose argument you cannot quite
+pin down. A paragraph in a paper outside your field. A poem that clearly means
 more than it says.
 
 ContextReader is for those. Select the passage and it tells you what the writer
-is actually saying — read together with the paragraph around it, not as an
-isolated string of words.
+is actually saying.
 
-WHY CONTEXT MATTERS
+READS THE PARAGRAPH, NOT JUST YOUR SELECTION
 
 Most tools define words. That is rarely the problem. You cannot say what a line
 of verse means from the line alone, and you cannot explain what an editorial is
 arguing against without the sentences that set it up. ContextReader sends the
-surrounding paragraph too, so it can answer the question you actually have.
+surrounding paragraph too, so it answers the question you actually have.
 
 FIVE WAYS TO READ A PASSAGE
 
-• Plain meaning — the same thing said in ordinary English
+• Line by line — verse worked through one line at a time, each line quoted as
+  it stands. Poetry, Shakespeare, song lyrics, scripture.
 • What's the point? — the writer's position, what they are arguing against,
-  and their tone, including irony that is easy to miss
-• Line by line — verse worked through one line at a time
-• How it works — word choice, sound, line breaks, deliberate double meanings
-• The jargon — technical terms defined in the sense this text uses them
+  and their tone. Catches irony and sarcasm, which are easy to read straight.
+• How it works — word choice, sound, where the line breaks, and words doing two
+  jobs at once. It found the pun on "sun of York" in Richard III unprompted.
+• Plain meaning — the same thing said in ordinary English.
+• The jargon — technical terms defined in the sense this text uses them.
 
-It picks the one that suits the passage and offers only the lenses that make
-sense for it. You can switch with a single tap.
+It offers only the lenses that suit the passage and picks one for you. Switch
+with a single tap.
 
 GO DEEPER
 
 Answers arrive in about two seconds. When that is not enough, Go deeper hands
 the same passage to a slower, more careful model — the one that notices a word
-held at a line break to make it read two ways.
+held at a line break so it reads two ways.
 
-WHAT IT DOES NOT DO
+IT DOES NOT INTERRUPT
 
-It does not interrupt. Selecting text shows a small pill, and nothing happens
-until you ask. No popup fires while you are highlighting to read.
+Selecting text shows a small pill, and nothing happens until you ask. No popup
+fires while you are highlighting a line to read it.
+
+GOOD FOR
+
+Students reading set texts and papers. Anyone working through a daily
+editorial. Readers of poetry. People reading in English above their comfort
+level. Anyone who has re-read the same sentence four times.
 
 FREE, WITH A DAILY ALLOWANCE
 
-30 explanations a day, resetting at midnight. A deep read uses three. The
-allowance exists because the service runs on a shared free quota — the limit
-keeps it working for everyone rather than letting one long session exhaust it.
+30 explanations a day, resetting at midnight; a deep read uses three. The
+allowance exists because the service runs on a shared free quota — it keeps the
+extension working for everyone rather than letting one long session exhaust it.
 
 PRIVACY
 
-The passage you select and the page address are sent to the explanation
-service and passed to Google's Gemini API, which produces the explanation.
-Nothing is stored on our servers, no account is required, and no selected text
-is written to any database or log. Note that Google may use data sent to its
-free API tier to improve its products; see the privacy policy for detail.
+The passage you select and the page address are sent to the explanation service
+and passed to Google's Gemini API, which produces the explanation. Nothing is
+stored on our servers, no account is required, and no selected text is written
+to any database or log. Google may use data sent to its free API tier to
+improve its products; see the privacy policy for detail.
+
+Open source: github.com/rautelaKamal/context-reader
 
 === PRIVACY POLICY URL ===
 https://context-reader.vercel.app/privacy
 
+=== SINGLE PURPOSE ===
+Explains passages the user selects while reading a web page.
+
 === PERMISSION JUSTIFICATION ===
 
 Host permission on all sites: the extension is a reading aid, and people read
-on arbitrary websites. It cannot know in advance which pages a reader will
-need help with. The content script only reacts to a deliberate selection
-followed by a click or keyboard shortcut; it does not read, collect or
-transmit page content otherwise.
+on arbitrary websites. It cannot know in advance which pages a reader will need
+help with. The content script only reacts to a deliberate selection followed by
+a click or keyboard shortcut; it does not read, collect or transmit page
+content otherwise.
 
 Storage: records the count of explanations used today, so the daily allowance
 can reset at midnight. No personal data is stored.
+
+=== DATA DISCLOSURE ===
+Collected: Website content (the selected passage and the page address).
+Not sold to third parties. Not used or transferred for any purpose unrelated
+to the item's single purpose. Not used to determine creditworthiness or for
+lending purposes.
