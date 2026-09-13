@@ -3,7 +3,9 @@
   "name": "ContextReader",
   "version": "0.2.0",
   "description": "Select a dense passage and get what the writer actually means - in context, without leaving the page.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://context-reader.vercel.app/*",
     "http://localhost:3000/*"
@@ -13,17 +15,31 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": { "16": "icon.png", "48": "icon.png", "128": "icon.png" }
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
   },
-  "icons": { "16": "icon.png", "48": "icon.png", "128": "icon.png" },
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }

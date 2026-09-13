@@ -1,22 +1,19 @@
 <!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,700&display=swap">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{width:128px;height:128px;overflow:hidden}
-  .tile{
-    width:128px;height:128px;background:#151a2d;border-radius:28px;
-    display:flex;flex-direction:column;justify-content:center;gap:11px;
-    padding:0 24px;
+  html,body{background:transparent}
+  body{
+    width:128px;height:128px;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
   }
-  /* lines of text, with the one you selected marked */
-  .l{height:11px;border-radius:3px;background:#6f7689}
-  .l.a{width:100%}
-  .l.b{width:78%}
-  .l.mark{background:#cfcbf2;width:100%}
-  .l.d{width:56%}
+  /* One bold serif letterform as a shape, over the product's own gesture:
+     a marker stroke that overshoots the word slightly, as a real one does. */
+  .c{
+    font-family:Literata,Georgia,serif;font-weight:700;font-size:96px;
+    line-height:.82;color:#151a2d;
+  }
+  .stroke{width:84px;height:17px;border-radius:4px;background:#a79fe8}
 </style>
-<div class="tile">
-  <div class="l a"></div>
-  <div class="l mark"></div>
-  <div class="l b"></div>
-  <div class="l d"></div>
-</div>
+<span class="c">C</span>
+<span class="stroke"></span>
