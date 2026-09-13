@@ -1,0 +1,41 @@
+Some sentences stop you even though you know every word in them.
+
+A line of Shakespeare. A newspaper editorial whose argument you cannot quite pin down. A paragraph in a paper outside your field. A poem that clearly means more than it says.
+
+ContextReader is for those. Select the passage, and it tells you what the writer is actually saying.
+
+READS THE PARAGRAPH, NOT JUST YOUR SELECTION
+
+Most tools define words. That is rarely the problem. You cannot say what a line of verse means from the line alone, and you cannot explain what an editorial is arguing against without the sentences that set it up. ContextReader sends the surrounding paragraph too, so it answers the question you actually have.
+
+FIVE WAYS TO READ A PASSAGE
+
+• Line by line — verse worked through one line at a time, each line quoted as it stands. Poetry, Shakespeare, song lyrics, scripture.
+• What's the point? — the writer's position, what they are arguing against, and their tone. Catches irony and sarcasm, which are easy to read straight.
+• How it works — word choice, sound, where the line breaks, and words doing two jobs at once. It found the pun on "sun of York" in Richard III unprompted.
+• Plain meaning — the same thing said in ordinary English.
+• The jargon — technical terms defined in the sense this text uses them.
+
+It offers only the lenses that suit the passage and picks one for you. Switch with a single tap.
+
+GO DEEPER
+
+Answers arrive in about two seconds. When that is not enough, Go deeper hands the same passage to a slower, more careful model — the one that notices a word held at a line break so it reads two ways.
+
+IT DOES NOT INTERRUPT
+
+Selecting text shows a small pill, and nothing happens until you ask. No popup fires while you are highlighting a line to read it.
+
+GOOD FOR
+
+Students reading set texts and papers. Anyone working through a daily editorial. Readers of poetry. People reading in English above their comfort level. Anyone who has re-read the same sentence four times.
+
+FREE, WITH A DAILY ALLOWANCE
+
+30 explanations a day, resetting at midnight; a deep read uses three. The allowance exists because the service runs on a shared free quota — it keeps the extension working for everyone rather than letting one long session exhaust it.
+
+PRIVACY
+
+The passage you select and the page address are sent to the explanation service and passed to Google's Gemini API, which produces the explanation. Nothing is stored on our servers, no account is required, and no selected text is written to any database or log. Google may use data sent to its free API tier to improve its products; see the privacy policy for details.
+
+Open source: github.com/rautelaKamal/context-reader

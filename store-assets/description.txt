@@ -11,7 +11,7 @@ A line of Shakespeare. A newspaper editorial whose argument you cannot quite
 pin down. A paragraph in a paper outside your field. A poem that clearly means
 more than it says.
 
-ContextReader is for those. Select the passage and it tells you what the writer
+ContextReader is for those. Select the passage, and it tells you what the writer
 is actually saying.
 
 READS THE PARAGRAPH, NOT JUST YOUR SELECTION
@@ -64,7 +64,7 @@ The passage you select and the page address are sent to the explanation service
 and passed to Google's Gemini API, which produces the explanation. Nothing is
 stored on our servers, no account is required, and no selected text is written
 to any database or log. Google may use data sent to its free API tier to
-improve its products; see the privacy policy for detail.
+improve its products; see the privacy policy for details.
 
 Open source: github.com/rautelaKamal/context-reader
 
