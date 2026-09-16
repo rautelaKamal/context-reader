@@ -18,7 +18,8 @@
     "corpus": "node scripts/corpus.mjs",
     "package-extension:store": "node scripts/package-extension.js --store",
     "cards": "python3 scripts/make-cards.py",
-    "cards:store": "python3 scripts/make-cards.py --store"
+    "cards:store": "python3 scripts/make-cards.py --store",
+    "qr": "python3 scripts/make-qr.py"
   },
   "dependencies": {
     "@huggingface/inference": "^3.7.1",
