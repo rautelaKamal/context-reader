@@ -35,17 +35,21 @@ for r in range(n):
         if not m[r][c] or is_finder(r, c):
             continue
         x, y = (c + QUIET) * CELL, (r + QUIET) * CELL
-        mods.append(f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" rx="3.2"/>')
+        mods.append(f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" rx="2.4"/>')
 
+# Three nested filled squares, 7 / 5 / 3 modules. A stroked ring straddles the
+# edge and destroys the 1:1:3:1:1 ratio scanners lock onto, which is what broke
+# the first version.
+PAGE = "#fdfcf7"
 finders = []
 for r0, c0 in ((0, 0), (0, n - 7), (n - 7, 0)):
     x, y = (c0 + QUIET) * CELL, (r0 + QUIET) * CELL
-    s = 7 * CELL
     finders.append(
-        f'<rect x="{x}" y="{y}" width="{s}" height="{s}" rx="{CELL*2.1:.1f}" '
-        f'fill="none" stroke="#151a2d" stroke-width="{CELL}"/>'
-        f'<rect x="{x+CELL*2}" y="{y+CELL*2}" width="{CELL*3}" height="{CELL*3}" '
-        f'rx="{CELL*.9:.1f}" fill="#151a2d"/>'
+        # Rounding is capped: measured against a decoder, rx up to ~0.9/0.6/0.35
+        # of a module still reads, and 1.5/1.0/0.6 does not.
+        f'<rect x="{x}" y="{y}" width="{CELL*7}" height="{CELL*7}" rx="{CELL*.7:.1f}" fill="#151a2d"/>'
+        f'<rect x="{x+CELL}" y="{y+CELL}" width="{CELL*5}" height="{CELL*5}" rx="{CELL*.45:.1f}" fill="{PAGE}"/>'
+        f'<rect x="{x+CELL*2}" y="{y+CELL*2}" width="{CELL*3}" height="{CELL*3}" rx="{CELL*.3:.1f}" fill="#151a2d"/>'
     )
 
 # No width/height: the container sizes it. With them the SVG renders at its
@@ -101,5 +105,12 @@ subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars",
                 "--force-device-scale-factor=2", "--window-size=1000,1000",
                 f"--screenshot={os.path.join(OUT, 'qr-book.png')}",
                 f"file://{os.path.abspath(src)}"], capture_output=True)
+png = os.path.join(OUT, "qr-book.png")
+try:
+    import cv2
+    decoded, _, _ = cv2.QRCodeDetector().detectAndDecode(cv2.imread(png))
+    print(f"  decode check: {'OK ' + decoded if decoded else 'FAILED — do not ship'}")
+except ImportError:
+    print("  decode check: skipped (pip install opencv-python-headless)")
 print(f"  {n}x{n} modules, error correction H, encoding {URL}")
 print("  -> store-assets/qr-book.png")
