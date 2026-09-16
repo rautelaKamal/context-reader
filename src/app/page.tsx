@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 const REPO = 'https://github.com/rautelaKamal/context-reader';
+const STORE = 'https://chromewebstore.google.com/detail/jncoindjikmapfahhnljenbplfboglhf';
 
 /** The lenses, in the order the extension offers them. */
 const LENSES = [
@@ -17,7 +18,7 @@ export default function Home() {
       <header className="bar">
         <span className="wordmark">ContextReader</span>
         <a href={REPO} target="_blank" rel="noopener noreferrer">Source</a>
-        <a href="/api/extension" download>Download</a>
+        <a href={STORE}>Add to Chrome</a>
       </header>
 
       <main className="page">
@@ -61,7 +62,7 @@ export default function Home() {
         </div>
 
         <div className="actions">
-          <a className="install" href="/api/extension" download>Add to Chrome</a>
+          <a className="install" href={STORE}>Add to Chrome</a>
           <span className="terms">Free. 30 explanations a day, resetting at midnight.</span>
         </div>
 
