@@ -158,3 +158,19 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
   return true; // keep the message channel open for the async reply
 });
+
+// Chrome does not inject content scripts into tabs that were already open when
+// the extension was installed, and on an update it tears the chrome.* APIs out
+// of the scripts already running there. Either way the person selects a
+// passage, nothing happens, and they have no way to know a refresh would fix
+// it. Re-inject on both events so the extension works in the tab they are
+// already reading.
+chrome.runtime.onInstalled.addListener(async () => {
+  const { js } = chrome.runtime.getManifest().content_scripts[0];
+  const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+  for (const tab of tabs) {
+    // Restricted pages (the Web Store, chrome://, other extensions) refuse, and
+    // that is fine. There is nothing to read there.
+    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: js }).catch(() => {});
+  }
+});

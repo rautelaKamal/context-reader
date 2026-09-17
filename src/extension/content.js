@@ -10,6 +10,13 @@
  */
 
 (() => {
+  // Re-injected on update into a tab that already has us. The isolated world
+  // survives, so this flag does.
+  if (window.__contextReader) return;
+  window.__contextReader = true;
+
+  const ORPHANED = 'ContextReader was just installed or updated. Refresh this page to use it.';
+
   if (window.__contextReaderLoaded) return;
   window.__contextReaderLoaded = true;
 
@@ -503,22 +510,36 @@
         this.depth === 'deep' ? 150000 : 45000,
       );
 
-      chrome.runtime.sendMessage({ type: 'explain', payload }, (response) => {
-        settle(() => {
-          if (chrome.runtime.lastError) {
-            this.setError('Extension was reloaded. Refresh the page and try again.');
-            return;
-          }
-          if (!response?.success) {
-            this.setError(response?.error || 'Could not get an explanation.', {
-              retryable: !response?.overLimit,
-            });
-            return;
-          }
-          if (typeof response.remaining === 'number') this.remaining = response.remaining;
-          this.renderResult(response.data);
+      // A content script outlives the extension that injected it. Reload,
+      // update or re-enable ContextReader and every chrome.* API in an
+      // already-open tab is torn down, so this call would throw and the card
+      // would spin forever. The page has to be refreshed to get a live script.
+      if (!chrome.runtime?.id) {
+        settle(() => this.setError(ORPHANED, { retryable: false }));
+        return;
+      }
+
+      try {
+        chrome.runtime.sendMessage({ type: 'explain', payload }, (response) => {
+          settle(() => {
+            if (chrome.runtime.lastError) {
+              this.setError(ORPHANED, { retryable: false });
+              return;
+            }
+            if (!response?.success) {
+              this.setError(response?.error || 'Could not get an explanation.', {
+                retryable: !response?.overLimit,
+              });
+              return;
+            }
+            if (typeof response.remaining === 'number') this.remaining = response.remaining;
+            this.renderResult(response.data);
+          });
         });
-      });
+      } catch {
+        // The context can die between the check above and the call itself.
+        settle(() => this.setError(ORPHANED, { retryable: false }));
+      }
     }
 
     renderResult(data) {

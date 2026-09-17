@@ -55,8 +55,11 @@ async function build() {
     if (apiBase) throw new Error('A store build cannot point at API_BASE - it must use the default.');
     const before = manifest.host_permissions.length;
     manifest.host_permissions = manifest.host_permissions.filter((h) => !h.includes('localhost'));
-    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-    console.log(`Store build: dropped ${before - manifest.host_permissions.length} localhost permission`);
+    const dropped = before - manifest.host_permissions.length;
+    if (dropped) {
+      await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+      console.log(`Store build: dropped ${dropped} localhost permission`);
+    }
   }
 
   await new Promise((resolve, reject) => {

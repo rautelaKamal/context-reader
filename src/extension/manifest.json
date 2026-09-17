@@ -4,11 +4,11 @@
   "version": "0.2.1",
   "description": "Select a dense passage and get what the writer actually means - in context, without leaving the page.",
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
-    "https://context-reader.vercel.app/*",
-    "http://localhost:3000/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
