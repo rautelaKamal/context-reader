@@ -488,19 +488,36 @@
       if (this.mode) payload.mode = this.mode;
       if (this.depth === 'deep') payload.depth = 'deep';
 
+      // A service worker can be terminated mid-request, and then the callback
+      // below is simply never invoked. Without this the card spins forever.
+      const token = Symbol('request');
+      this.pending = token;
+      const settle = (fn) => {
+        if (this.pending !== token) return;
+        this.pending = null;
+        clearTimeout(watchdog);
+        fn();
+      };
+      const watchdog = setTimeout(
+        () => settle(() => this.setError('No answer came back. Try again.')),
+        this.depth === 'deep' ? 150000 : 45000,
+      );
+
       chrome.runtime.sendMessage({ type: 'explain', payload }, (response) => {
-        if (chrome.runtime.lastError) {
-          this.setError('Extension was reloaded. Refresh the page and try again.');
-          return;
-        }
-        if (!response?.success) {
-          this.setError(response?.error || 'Could not get an explanation.', {
-            retryable: !response?.overLimit,
-          });
-          return;
-        }
-        if (typeof response.remaining === 'number') this.remaining = response.remaining;
-        this.renderResult(response.data);
+        settle(() => {
+          if (chrome.runtime.lastError) {
+            this.setError('Extension was reloaded. Refresh the page and try again.');
+            return;
+          }
+          if (!response?.success) {
+            this.setError(response?.error || 'Could not get an explanation.', {
+              retryable: !response?.overLimit,
+            });
+            return;
+          }
+          if (typeof response.remaining === 'number') this.remaining = response.remaining;
+          this.renderResult(response.data);
+        });
       });
     }
 
@@ -557,6 +574,7 @@
       this.card?.el.remove();
       this.card = null;
       this.anchor = null;
+      this.pending = null;
     }
   }
 
