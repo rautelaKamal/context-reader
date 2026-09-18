@@ -10,15 +10,12 @@
  */
 
 (() => {
-  // Re-injected on update into a tab that already has us. The isolated world
-  // survives, so this flag does.
-  if (window.__contextReader) return;
-  window.__contextReader = true;
-
-  const ORPHANED = 'ContextReader was just installed or updated. Refresh this page to use it.';
-
+  // Already here. This matters on an update, when the service worker
+  // re-injects us into tabs that are still running an older copy.
   if (window.__contextReaderLoaded) return;
   window.__contextReaderLoaded = true;
+
+  const ORPHANED = 'ContextReader was just installed or updated. Refresh this page to use it.';
 
   const MAX_SELECTION = 2000;
   const BLOCK_TAGS = new Set([
