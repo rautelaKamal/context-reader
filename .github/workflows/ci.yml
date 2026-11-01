@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Keep both running when one fails, so a version specific break is
+      # obvious rather than hidden behind the first failure.
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+
+    name: node ${{ matrix.node }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # ci, not install: it installs exactly what the lockfile pins and fails
+      # if the lockfile and package.json disagree.
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run typecheck
+
+      - run: npm run build

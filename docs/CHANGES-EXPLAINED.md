@@ -89,3 +89,56 @@ to install, which means it can run on every commit in CI. The trade is real: a
 fake can drift from the thing it imitates, which is precisely the bug fixed
 here. So fakes are right for logic, and a genuine browser is still needed to
 test that the extension works in a browser.
+
+---
+
+## Run the checks automatically on every push
+
+**What changed.** A new file, `.github/workflows/ci.yml`. On every push to
+`main` and on every pull request, GitHub installs the dependencies and runs the
+tests, the typecheck and the production build. It does all of that twice, once
+on Node 20 and once on Node 22.
+
+**Why.** Checks only help if they actually run. Until now they ran when someone
+remembered, on one machine, with whatever Node version happened to be
+installed. The first fix in this batch exists because the test command behaved
+differently on two Node versions, which is exactly the class of problem a
+single machine cannot catch.
+
+Three details worth knowing:
+
+* `npm ci` rather than `npm install`. It installs precisely what the lockfile
+  pins and refuses to run if the lockfile and `package.json` disagree, so CI
+  tests the same dependency versions every time.
+* `fail-fast: false`. By default GitHub cancels the other jobs as soon as one
+  fails. Turning that off means that when something breaks you can see whether
+  it broke on both versions or only one, which is usually the first clue.
+* The build runs with no `.env` file, because CI has no secrets. That is worth
+  knowing deliberately: it proves the app can be built without an API key, and
+  it would catch any code that reads a secret at build time instead of when a
+  request arrives.
+
+**What breaks without it.** Nothing immediately, which is the point. The cost
+is paid later, when a change that works on your laptop fails for everyone else
+and nobody finds out until it is deployed.
+
+**Interview questions**
+
+*Q: What is the difference between `npm install` and `npm ci`, and why does CI
+prefer `ci`?*
+A: `npm install` can update the lockfile to satisfy the ranges in
+`package.json`, so two runs a week apart can install different versions.
+`npm ci` deletes `node_modules`, installs exactly what the lockfile pins, and
+errors if the lockfile is out of step with `package.json`. CI wants to be
+repeatable: a build that passes today should pass identically tomorrow, and a
+failure should point at your change rather than at a dependency that moved
+underneath you.
+
+*Q: Why test more than one Node version when production only runs one?*
+A: Because "production" is more than one thing. Vercel's build image, this
+project's contributors and CI can all be on different versions, and a developer
+upgrading their laptop should not quietly change what the code does. The
+specific bug in this batch only appeared on Node 22, so a single version matrix
+would have shipped it. The general rule is to test the range you claim to
+support, and if you only want to support one version, say so and enforce it
+with the `engines` field rather than by hoping.
