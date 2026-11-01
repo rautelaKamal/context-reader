@@ -29,7 +29,13 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
       };
     },
     chrome: {
-      runtime: { onMessage: { addListener: (fn) => { listener = fn; } } },
+      runtime: {
+        onMessage: { addListener: (fn) => { listener = fn; } },
+        // The worker registers an onInstalled handler at load time to
+        // re-inject into already open tabs. These tests only exercise the
+        // quota path, so the handler is accepted and never invoked.
+        onInstalled: { addListener: () => {} },
+      },
       storage: {
         local: {
           get: async (key) => (key in store ? { [key]: store[key] } : {}),
