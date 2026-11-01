@@ -390,3 +390,41 @@ the same `Map` is a perfect cache in a single long lived server and useless
 across ephemeral edge functions. Whenever state has to be shared, the question
 to ask early is "shared between what, exactly", and if the answer is "processes
 I do not control the number of", it has to live outside the process.
+
+---
+
+## Bump the extension to 0.2.2
+
+**What changed.** `src/extension/manifest.json` goes from `0.2.1` to `0.2.2`.
+
+**Why.** This phase changed the extension: it now creates an install id and
+sends it with every request. Chrome will not accept an upload whose version is
+not higher than the published one, so the number has to move before anything
+can ship. One bump at the end of the phase rather than one per commit, because
+the version describes what users receive, and users receive the whole phase at
+once.
+
+Nothing is published by this commit. Uploading stays a manual step.
+
+**What breaks without it.** The store rejects the upload, and the work sits
+finished but undeliverable.
+
+**Interview questions**
+
+*Q: Your server now expects a header that older installed copies do not send.
+How do you roll that out without breaking people?*
+A: By making the new header optional and designing a sensible fallback, which
+here means counting those requests by network address instead. Extension
+updates roll out over days and some people disable updates entirely, so for a
+while both versions are live at once and the server has to serve both. The
+general rule for any client and server that ship separately: the server
+tolerates the old client first, the client starts sending the new thing second,
+and only once almost nobody is on the old version can you consider requiring
+it.
+
+*Q: Why not bump the version on every commit?*
+A: The version is a fact about what a user has installed, not about your
+history, and users never receive an individual commit. Bumping per commit
+produces numbers that mean nothing to anyone outside the repository and churns
+the manifest in every diff. Git already records the commits; the version
+records the releases.
