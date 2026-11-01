@@ -128,9 +128,8 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
-  if (request?.type !== 'explain' && request?.type !== 'translate') return false;
+  if (request?.type !== 'explain') return false;
 
-  const endpoint = request.type === 'translate' ? '/api/translate' : '/api/explain';
   const depth = request.payload?.depth === 'deep' ? 'deep' : 'fast';
 
   spend(depth)
@@ -144,7 +143,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         err.overLimit = true;
         throw err;
       }
-      return call(endpoint, request.payload).then((data) =>
+      return call('/api/explain', request.payload).then((data) =>
         sendResponse({ success: true, data, remaining: allowance.remaining }));
     })
     .catch((error) => {

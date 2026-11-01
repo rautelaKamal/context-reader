@@ -253,3 +253,50 @@ symptom (requests blocked by the browser) that looks nothing like its cause. A
 constant makes the working state the default and leaves config for additions.
 The general rule: let configuration extend safe defaults rather than being
 required to produce them.
+
+---
+
+## Remove the translation endpoint and the branch that called it
+
+**What changed.** Deleted `src/app/api/translate/`, and removed the
+`type === 'translate'` branch from the extension's service worker. The worker
+now has one endpoint to call rather than choosing between two.
+
+**Why.** Nothing sent that message. The user interface has no translate
+control, so the only path to that endpoint was a branch no code took. Deleting
+the route alone would have left the worker still able to ask for a URL that no
+longer exists, so both halves go together: a caller and a thing to call are one
+unit, and removing either on its own leaves a trap.
+
+Dead code is not free. It has to be read by everyone who passes through, it
+shows up in searches, it gets updated during refactors, and it quietly suggests
+a feature exists. An endpoint is worse than most dead code because it is a door
+into the system: it accepted requests, spent model budget, and had to be kept
+secure and rate limited like any other, all to serve nobody.
+
+**What breaks without it.** Nothing, which is the point. What you carry instead
+is a second public endpoint that must be maintained and defended for no
+benefit.
+
+**Still dead, left alone on purpose.** `translate()` in `src/lib/ai.ts` is now
+unreferenced. It is listed rather than deleted, because removing code is easier
+to agree to than to undo and the owner should choose.
+
+**Interview questions**
+
+*Q: How did you convince yourself the endpoint was genuinely unused before
+deleting it?*
+A: I searched for every reference to the name across the whole repository, not
+just the obvious files, and traced what reached it. The one caller was a branch
+in the worker guarded by a message type nothing ever sent. For a public HTTP
+endpoint, reading the code is only half the answer, because anyone on the
+internet can call a URL regardless of what your code does. The complete answer
+checks request logs or analytics for real traffic before removing it, and for a
+widely used API you deprecate and watch before you delete.
+
+*Q: Why delete it rather than leave it in case translation comes back?*
+A: Version control already keeps it, so "in case we need it" is not a reason to
+keep code in the working tree: it is one `git log` away if it ever returns. The
+live cost of keeping it is ongoing, and for an endpoint it includes a security
+and billing surface. The decision changes if something outside the repository
+depends on it, which for a public URL is worth checking before assuming.
