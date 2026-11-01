@@ -482,3 +482,51 @@ reason about people who travel. One fixed boundary chosen to match where the
 readers actually are gets almost all of the benefit for none of that. If the
 audience spreads out, the right next step is a per install offset recorded at
 install time rather than trusting the clock on every request.
+
+---
+
+## Make the store build safe by construction instead of by flag
+
+**What changed.** The `--store` flag and the `package-extension:store` script
+are gone. In their place, `npm run package-extension` writes the zip only when
+`API_BASE` is unset. A local build still produces `dist-extension/` for loading
+unpacked, but no zip.
+
+**Why.** The flag's only job was removing a `localhost` entry from the
+manifest's host permissions, and there is no longer such an entry to remove:
+the manifest now asks for `<all_urls>` so that it can re-inject into tabs that
+were already open. So the flag did nothing, while still looking like it did
+something important, which is worse than not existing.
+
+It did carry one real protection, a refusal to make a store build with
+`API_BASE` set, and that protection is worth keeping. It is now expressed
+differently. Rather than "pass this flag to get a safe build", the rule is "the
+zip is the thing you upload, so the zip is only ever a default build". The
+unsafe artifact is not produced at all, instead of being produced unless you
+remember a flag.
+
+This is a real failure that happened while making this change: a local build
+with `API_BASE=http://localhost:3000` silently overwrote `public/extension.zip`
+with a copy pointing at a laptop. Uploading that would have broken the
+extension for every user, and nothing about the zip would have looked wrong.
+
+**What breaks without it.** A flag that implies a safety step it no longer
+performs, and an upload artifact that any local build can quietly poison.
+
+**Interview questions**
+
+*Q: What is wrong with a flag that no longer does anything, if it is harmless?*
+A: It is not harmless, because it still communicates. Anyone reading
+`package-extension:store` reasonably concludes there is a meaningful difference
+between a store build and a normal one, and may rely on a protection that is no
+longer there. Code that lies about what it does is worse than code that does
+nothing, because it is trusted. When behaviour disappears, the name for it
+should go too.
+
+*Q: You replaced a flag with a structural rule. When is that the better move?*
+A: When the failure mode is forgetting. A flag puts the safety in the hands of
+whoever types the command, at the moment they are least likely to be careful.
+Making the dangerous artifact impossible to produce removes the chance to get
+it wrong, which is the same reason a type is better than a comment saying "do
+not pass null here". The limit is that structure is less flexible, so it suits
+rules that should always hold, and a flag still suits a genuine choice.

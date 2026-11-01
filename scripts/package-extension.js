@@ -19,13 +19,6 @@ const zipPath = join(root, 'public', 'extension.zip');
 /** Point the build at a local server with API_BASE=http://localhost:3000 */
 const apiBase = process.env.API_BASE;
 
-/**
- * `--store` produces the build for submission: localhost is stripped from the
- * host permissions, because a published extension has no business asking to
- * reach the developer's machine, and reviewers flag permissions a listing
- * cannot justify.
- */
-const forStore = process.argv.includes('--store');
 
 async function build() {
   await rm(dist, { recursive: true, force: true });
@@ -51,15 +44,14 @@ async function build() {
   const manifestPath = join(dist, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
-  if (forStore) {
-    if (apiBase) throw new Error('A store build cannot point at API_BASE - it must use the default.');
-    const before = manifest.host_permissions.length;
-    manifest.host_permissions = manifest.host_permissions.filter((h) => !h.includes('localhost'));
-    const dropped = before - manifest.host_permissions.length;
-    if (dropped) {
-      await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-      console.log(`Store build: dropped ${dropped} localhost permission`);
-    }
+  // Only a default build gets zipped. The zip is what gets uploaded to the
+  // store, so it must not be able to hold a build pointing at a laptop.
+  // Making that structural beats a flag someone has to remember to pass.
+  if (apiBase) {
+    console.log(`Packaged ${manifest.name} v${manifest.version} for local use`);
+    console.log('  unpacked: dist-extension/');
+    console.log('  no zip, because API_BASE is set');
+    return;
   }
 
   await new Promise((resolve, reject) => {
@@ -73,7 +65,7 @@ async function build() {
     archive.finalize();
   });
 
-  console.log(`Packaged ${manifest.name} v${manifest.version}${forStore ? ' (for the Chrome Web Store)' : ''}`);
+  console.log(`Packaged ${manifest.name} v${manifest.version}`);
   console.log(`  unpacked: dist-extension/`);
   console.log(`  zip:      public/extension.zip`);
 }
