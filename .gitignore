@@ -52,3 +52,7 @@ dist-extension/
 # keep the example, ignore real env files
 !.env.example
 public/_dev/
+
+# Locally captured corpus pages. The articles are copyrighted, so the
+# captures stay on the machine that made them.
+corpus-local/

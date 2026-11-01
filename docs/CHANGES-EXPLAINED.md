@@ -142,3 +142,60 @@ specific bug in this batch only appeared on Node 22, so a single version matrix
 would have shipped it. The general rule is to test the range you claim to
 support, and if you only want to support one version, say so and enforce it
 with the `engines` field rather than by hoping.
+
+---
+
+## Take local machine detail out of the repo
+
+**What changed.** Two unrelated pieces of one computer's setup that had been
+committed by accident.
+
+1. A local editor settings folder is no longer tracked. It is now ignored
+   through `.git/info/exclude` rather than `.gitignore`. The folder stays on
+   disk, so nothing changes about working locally.
+2. In `scripts/corpus-sources.json`, one source pointed at
+   `/private/tmp/.../scratchpad/corpus/hindu-nepal.json`. That now reads
+   `corpus-local/hindu-nepal.json`, and `corpus-local/` is ignored.
+
+**Why.** Both were paths that only ever existed on one machine.
+
+The choice of ignore file is deliberate and looks inconsistent on purpose.
+`.gitignore` is itself committed and published, so naming a folder there
+publishes that name. When the reason for ignoring something is that you do not
+want it mentioned publicly, writing it into a published file defeats the
+exercise. `.git/info/exclude` does the same job for the same clone and is never
+committed. The rule of thumb: `.gitignore` is for what *everyone* on the
+project should ignore, `.git/info/exclude` is for what only *your* setup
+produces.
+
+The corpus path was fixed rather than deleted. The entry is the only source
+from the publication this tool is most aimed at, so dropping it would cost real
+coverage. It pointed into a temporary folder that has since been cleared, so
+the source was already being skipped silently on every run, and it could never
+have worked on anyone else's machine or in CI. The captured article is not
+committed because it is copyrighted news text, and `corpus.mjs` already skips a
+source whose file is missing, so the entry costs nothing when the capture is
+absent and starts working the moment you make one.
+
+**What breaks without it.** Nothing technically. What you get is a public
+repository carrying details of one contributor's machine, and a corpus source
+that looks configured while quietly never running.
+
+**Interview questions**
+
+*Q: When would you use `.git/info/exclude` instead of `.gitignore`?*
+A: When the thing being ignored is yours rather than the project's. Editor
+folders, local scratch directories and personal tool settings are noise for
+everyone else, and a shared `.gitignore` both collects clutter and tells the
+world which tools you use. `.gitignore` belongs to the project and is
+published; `.git/info/exclude` belongs to your clone and never leaves it.
+
+*Q: You found a config entry pointing at a path that no longer exists, and the
+code skipped it without complaining. Is silent skipping the right behaviour?*
+A: It depends on whether absence is expected. Here it is: the capture is
+deliberately not committed, so most clones will not have it, and refusing to
+run the rest of the corpus over one missing optional source would be worse.
+What was actually wrong is that the skip was invisible, so a source could be
+broken for months unnoticed. The better shape is to tolerate the absence but
+report it, which is what the script does when it prints that it is skipping a
+source. Fail loudly on what must be there, report quietly on what may not be.

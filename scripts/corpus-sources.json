@@ -1,11 +1,12 @@
 [
   {
     "name": "ARTICLE \u00b7 The Hindu \u2014 Nepal flood",
-    "localFile": "/private/tmp/claude-501/-Users-kamalrautela-Desktop-Draw-App/d289992c-c756-43e4-a8b8-a66bed1c6925/scratchpad/corpus/hindu-nepal.json",
+    "localFile": "corpus-local/hindu-nepal.json",
     "title": "Danger from above: On the Nepal flood",
     "site": "thehindu.com",
     "url": "https://www.thehindu.com/opinion/editorial/danger-from-above/article71396710.ece",
-    "take": 1
+    "take": 1,
+    "note": "Captured from a rendered browser page, because the site builds its article body in JavaScript and a plain fetch returns subscription furniture. Not committed: the article is copyrighted. corpus.mjs skips this source when the file is absent."
   },
   {
     "name": "ARTICLE \u00b7 Indian Express \u2014 conscious AI",
