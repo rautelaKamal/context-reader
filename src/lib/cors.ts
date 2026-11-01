@@ -35,7 +35,9 @@ export function corsHeaders(request: Request): Record<string, string> {
 
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Install-Id',
+    // Without this the extension can read the body but not these headers.
+    'Access-Control-Expose-Headers': 'X-Quota-Remaining, X-Quota-Reset, Retry-After',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };

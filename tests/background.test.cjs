@@ -10,7 +10,7 @@ const { join } = require('node:path');
 
 const SOURCE = readFileSync(join(__dirname, '..', 'src', 'extension', 'background.js'), 'utf8');
 
-function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } } } = {}) {
+function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } }, breakStorage = false } = {}) {
   let listener = null;
   const calls = [];
 
@@ -19,8 +19,9 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
     setTimeout,
     AbortSignal: { timeout: () => undefined },
     navigator: { onLine: true },
+    crypto: globalThis.crypto,
     fetch: async (url, init) => {
-      calls.push({ url, body: JSON.parse(init.body) });
+      calls.push({ url, body: JSON.parse(init.body), headers: init.headers });
       return {
         ok: respondWith.ok,
         status: respondWith.status ?? 200,
@@ -38,8 +39,14 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
       },
       storage: {
         local: {
-          get: async (key) => (key in store ? { [key]: store[key] } : {}),
-          set: async (patch) => { Object.assign(store, patch); },
+          get: async (key) => {
+            if (breakStorage) throw new Error('storage unavailable');
+            return key in store ? { [key]: store[key] } : {};
+          },
+          set: async (patch) => {
+            if (breakStorage) throw new Error('storage unavailable');
+            Object.assign(store, patch);
+          },
         },
       },
     },
@@ -62,6 +69,35 @@ const todayKey = () => {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 };
+
+test('install id', async (t) => {
+  await t.test('is sent with the request, so the server can count this install', async () => {
+    const { send, calls } = bootWorker();
+    await send(explain());
+    const id = calls[0].headers['X-Install-Id'];
+    assert.ok(id, 'header is present');
+    assert.match(id, /^[0-9a-f-]{36}$/, 'a random uuid, not anything about the person');
+  });
+
+  await t.test('is made once and reused, so one profile stays one install', async () => {
+    const store = {};
+    const first = bootWorker({ store });
+    await first.send(explain());
+    const second = bootWorker({ store });
+    await second.send(explain());
+    assert.equal(
+      first.calls[0].headers['X-Install-Id'],
+      second.calls[0].headers['X-Install-Id'],
+    );
+  });
+
+  await t.test('is left out when storage refuses, rather than failing the request', async () => {
+    const { send, calls } = bootWorker({ breakStorage: true });
+    const res = await send(explain());
+    assert.equal(res.success, true, 'the reader still gets an answer');
+    assert.equal(calls[0].headers['X-Install-Id'], undefined);
+  });
+});
 
 test('daily allowance', async (t) => {
   await t.test('reports the full allowance before anything is used', async () => {

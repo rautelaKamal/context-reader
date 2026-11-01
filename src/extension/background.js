@@ -60,6 +60,24 @@ async function spend(depth) {
   return { ok: true, remaining: DAILY_LIMIT - next.used };
 }
 
+/**
+ * A random id for this browser profile, made once and kept. It identifies the
+ * install to the server's quota and nothing else: it is not tied to a person,
+ * carries no personal detail, and is hashed before the server stores it.
+ */
+async function installId() {
+  try {
+    const stored = await chrome.storage.local.get('installId');
+    if (stored?.installId) return stored.installId;
+    const fresh = crypto.randomUUID();
+    await chrome.storage.local.set({ installId: fresh });
+    return fresh;
+  } catch {
+    // Without storage the server falls back to limiting by address.
+    return null;
+  }
+}
+
 async function apiBase() {
   try {
     const stored = await chrome.storage.local.get('apiBase');
@@ -89,12 +107,16 @@ const TIMEOUT_MS = { fast: 30_000, deep: 120_000 };
 async function call(endpoint, payload) {
   const base = await apiBase();
   const budget = TIMEOUT_MS[payload?.depth === 'deep' ? 'deep' : 'fast'];
+  const id = await installId();
 
   let response;
   try {
     response = await fetch(`${base}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(id ? { 'X-Install-Id': id } : {}),
+      },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(budget),
     });
@@ -113,9 +135,12 @@ async function call(endpoint, payload) {
   if (!response.ok) {
     const data = await response.json().catch(() => null);
     // Prefer the API's own message; it knows more than the status code does.
-    throw new Error(
+    const error = new Error(
       data?.error || FRIENDLY_STATUS[response.status] || `Request failed (${response.status}).`,
     );
+    // The allowance is spent, so offering to try again would only waste a tap.
+    if (response.status === 429) error.overLimit = true;
+    throw error;
   }
 
   return response.json();

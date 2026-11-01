@@ -4,7 +4,9 @@ import { corsHeaders } from '@/lib/cors';
 import { parseContext, ValidationError } from '@/lib/context';
 import { applicableModes, detectMode, isModeId, MODES } from '@/lib/modes';
 import { hasProviderCredentials, ProviderError } from '@/lib/provider';
-import { checkRateLimit, clientKey } from '@/lib/ratelimit';
+import {
+  clientIp, COST, limitsFromEnv, quotaHeaders, refusalMessage, spend, upstashPipeline,
+} from '@/lib/quota';
 
 export const runtime = 'edge';
 
@@ -27,22 +29,37 @@ export async function POST(request: Request) {
     );
   }
 
-  const limit = checkRateLimit(clientKey(request));
-  if (!limit.ok) {
-    return NextResponse.json(
-      { error: 'Too many requests. Give it a moment and try again.' },
-      {
-        status: 429,
-        headers: { ...headers, 'Retry-After': String(limit.retryAfterSeconds) },
-      },
-    );
-  }
-
   let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400, headers });
+  }
+
+  // The body is read first because a deep read costs more than a fast one, so
+  // the price is not known until the request is understood. A malformed body
+  // is rejected above without spending anything.
+  const depth = (body as Record<string, unknown>).depth === 'deep' ? 'deep' : 'fast';
+
+  const quota = await spend(upstashPipeline(), {
+    installId: request.headers.get('x-install-id'),
+    ip: clientIp(request),
+    cost: COST[depth],
+    limits: limitsFromEnv(),
+  });
+
+  if (!quota.ok) {
+    return NextResponse.json(
+      { error: refusalMessage(quota), quota: { remaining: 0, resetAt: quota.resetAt } },
+      {
+        status: 429,
+        headers: {
+          ...headers,
+          ...quotaHeaders(quota),
+          'Retry-After': String(Math.max(1, quota.resetAt - Math.floor(Date.now() / 1000))),
+        },
+      },
+    );
   }
 
   try {
@@ -52,7 +69,6 @@ export async function POST(request: Request) {
       ? requested
       : detectMode({ selection: context.selection, url: context.url });
 
-    const depth = (body as Record<string, unknown>).depth === 'deep' ? 'deep' : 'fast';
     const result = await explain(context, mode, depth);
 
     // The extension renders its chips from this rather than a hardcoded list,
@@ -60,8 +76,8 @@ export async function POST(request: Request) {
     const modes = applicableModes({ selection: context.selection, url: context.url })
       .map((id) => MODES[id]);
 
-    return NextResponse.json({ ...result, modes }, {
-      headers: { ...headers, 'X-RateLimit-Remaining': String(limit.remaining) },
+    return NextResponse.json({ ...result, modes, quota: { remaining: quota.remaining, resetAt: quota.resetAt } }, {
+      headers: { ...headers, ...quotaHeaders(quota) },
     });
   } catch (error) {
     if (error instanceof ValidationError) {

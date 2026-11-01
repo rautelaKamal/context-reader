@@ -300,3 +300,93 @@ keep code in the working tree: it is one `git log` away if it ever returns. The
 live cost of keeping it is ongoing, and for an endpoint it includes a security
 and billing surface. The decision changes if something outside the repository
 depends on it, which for a public URL is worth checking before assuming.
+
+---
+
+## Count the daily allowance on the server, not on the reader's machine
+
+**What changed.** The allowance used to be counted only in the extension, in
+`chrome.storage`. It is now also counted on the server in Upstash Redis, which
+is the count that decides. `src/lib/ratelimit.ts` is gone and
+`src/lib/quota.ts` replaces it. The extension makes a random install id once,
+keeps it, and sends it as an `X-Install-Id` header.
+
+**Why the old one did not work.** Two separate reasons.
+
+*It was on the wrong machine.* `chrome.storage` belongs to the reader. Clearing
+it resets the allowance, and anyone can clear it. A limit the person being
+limited can erase is a suggestion.
+
+*The replacement it had on the server did not survive the architecture.* The
+old `ratelimit.ts` kept counts in a JavaScript `Map`, in memory. The API runs
+on edge functions, which means many short lived copies around the world, each
+with its own memory, each starting empty. Ten requests could hit ten copies and
+every one would see a count of zero. It worked perfectly on one laptop and did
+essentially nothing in production. That is the general shape of the bug: state
+in memory is per process, and serverless means you do not know or control how
+many processes there are.
+
+**The three counters.**
+
+| Counter | Default | What it is for |
+|---|---|---|
+| per install | 30 | Normal fairness between readers |
+| per address | 90 | Someone minting fresh install ids from one machine |
+| global | 2000 | A hard ceiling on the whole service |
+
+The second exists because the first is easy to defeat: the install id comes
+from the client, so a determined caller can simply send a new one each time.
+The address counter catches that. The global cap exists because the address
+counter can also be defeated, with enough addresses, and the thing that must
+never happen is an unbounded bill. Each layer assumes the one before it failed.
+
+**Atomic counting.** Each counter is a single Redis `INCRBY`, which returns the
+new total. Incrementing and reading in one operation matters: if the code read
+the count, decided, then wrote it back, two requests arriving together would
+both read the same old number and both be allowed. Redis runs commands one at
+a time, so `INCRBY` cannot interleave. Every key also gets an `EXPIRE`, so the
+store does not grow forever.
+
+The check happens *after* the increment, which means a refused request still
+counts. That is on purpose: it costs one round trip instead of two, and a
+client that keeps hammering pushes itself further away rather than retrying
+free.
+
+**What happens when Redis is down or not configured.** The request is allowed,
+and the decision says `enforced: false`. This is a deliberate trade. Failing
+closed would mean a Redis outage takes the whole product down for everyone,
+which is a worse day than a few hours of uncounted usage. The cost of this
+choice is real: while the store is unreachable there is no ceiling, so the
+outage matters and should not be ignored.
+
+**Privacy.** Install ids and addresses are hashed before they become keys, so
+the store holds no raw address and nothing linking back to a person. A test
+asserts this, because it is the sort of thing that quietly regresses.
+
+**Old extensions keep working.** Readers who have not updated send no install
+id. Rather than refuse them, the server falls back to counting them by address
+alone. Breaking existing users to enforce a new header would be a worse
+outcome than counting them slightly more loosely for a few days.
+
+**What breaks without it.** Anyone can clear their browser storage and have an
+unlimited allowance, and there is no ceiling on the bill at all.
+
+**Interview questions**
+
+*Q: Why can a limit not be enforced in the client?*
+A: Because the client runs on hardware the other person controls, so anything
+it enforces, they can change: clear storage, edit the extension, or skip it and
+call the API directly with curl. Client side limits are a user interface
+feature, useful for showing someone where they stand and avoiding a pointless
+request, and they are not security. The rule is that any check that must hold
+has to happen somewhere the person being checked cannot reach.
+
+*Q: Why keep an in memory counter at all if it did not work, and what is the
+general lesson?*
+A: It was written when the shape of the deployment was not thought through, and
+it looked correct in local testing because one laptop runs one process. The
+lesson is that correctness depends on the execution model, not just the code:
+the same `Map` is a perfect cache in a single long lived server and useless
+across ephemeral edge functions. Whenever state has to be shared, the question
+to ask early is "shared between what, exactly", and if the answer is "processes
+I do not control the number of", it has to live outside the process.

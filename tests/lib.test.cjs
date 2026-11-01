@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const { detectMode } = require('../.test-build/modes');
 const { parseExplanation } = require('../.test-build/prompts');
 const { parseContext } = require('../.test-build/context');
-const { checkRateLimit } = require('../.test-build/ratelimit');
 
 test('mode detection', async (t) => {
   await t.test('reads a Shakespeare sonnet as verse', () => {
@@ -144,23 +143,5 @@ test('request parsing', async (t) => {
 
   await t.test('truncates an oversized selection', () => {
     assert.equal(parseContext({ selection: 'x'.repeat(5000) }).selection.length, 2000);
-  });
-});
-
-test('rate limiting', async (t) => {
-  const now = Date.now();
-
-  await t.test('blocks past the window allowance', () => {
-    let last;
-    for (let i = 0; i < 21; i++) last = checkRateLimit('1.2.3.4', now);
-    assert.equal(last.ok, false);
-  });
-
-  await t.test('tracks clients separately', () => {
-    assert.equal(checkRateLimit('5.6.7.8', now).ok, true);
-  });
-
-  await t.test('resets after the window', () => {
-    assert.equal(checkRateLimit('1.2.3.4', now + 61_000).ok, true);
   });
 });
