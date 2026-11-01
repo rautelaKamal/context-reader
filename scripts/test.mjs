@@ -6,7 +6,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,4 +32,17 @@ execFileSync(
 // The repo is type: module, so mark the compiled output as CommonJS.
 writeFileSync(join(out, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-execFileSync('node', ['--test', 'tests/'], { cwd: root, stdio: 'inherit' });
+// Pass the files explicitly. Node 20 reads a bare `tests/` as a directory to
+// search but cannot expand globs; Node 22 matches arguments as globs, so the
+// same bare `tests/` resolves to a filename that does not exist and nothing
+// runs. Listing the files ourselves means neither version has to guess.
+const testFiles = readdirSync(join(root, 'tests'))
+  .filter((name) => name.endsWith('.test.cjs'))
+  .sort()
+  .map((name) => join('tests', name));
+
+// A runner that finds nothing still exits 0, which is indistinguishable from
+// everything passing. Treat it as the failure it is.
+if (testFiles.length === 0) throw new Error('No test files matched tests/*.test.cjs');
+
+execFileSync('node', ['--test', ...testFiles], { cwd: root, stdio: 'inherit' });
