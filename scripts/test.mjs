@@ -20,7 +20,8 @@ execFileSync(
   'npx',
   [
     'tsc',
-    'src/lib/modes.ts', 'src/lib/prompts.ts', 'src/lib/context.ts', 'src/lib/ratelimit.ts',
+    'src/lib/modes.ts', 'src/lib/prompts.ts', 'src/lib/context.ts',
+    'src/lib/ratelimit.ts', 'src/lib/cors.ts',
     '--outDir', out,
     '--module', 'commonjs',
     '--target', 'es2022',

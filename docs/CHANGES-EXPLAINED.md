@@ -199,3 +199,57 @@ What was actually wrong is that the skip was invisible, so a source could be
 broken for months unnoticed. The better shape is to tolerate the absence but
 report it, which is what the script does when it prints that it is skipping a
 source. Fail loudly on what must be there, report quietly on what may not be.
+
+---
+
+## Only let the real extension call the API
+
+**What changed.** `src/lib/cors.ts` used to accept any origin beginning
+`chrome-extension://`, any host ending `.vercel.app`, and localhost at all
+times. It now accepts one exact extension id, plus any ids listed in the
+`ALLOWED_EXTENSION_IDS` environment variable, plus localhost only when
+`NODE_ENV` is `development`. New tests in `tests/cors.test.cjs` cover each
+rule.
+
+**Why.** CORS is the browser asking a server "this page wants to call you, is
+that allowed?" The server answers with an `Access-Control-Allow-Origin` header,
+and the browser blocks the reply if the answer does not match.
+
+The old answer was close to "anyone". Extension ids are not secret, they are
+visible in the store URL, and anybody can publish an extension or deploy a site
+to `vercel.app`. So the check excluded almost nothing.
+
+The published id is a constant in the file rather than only an environment
+value. That is deliberate: if it lived solely in the environment and that
+variable went missing, every real user would be blocked at once. Hard coding
+the known good id means a configuration mistake cannot take the product down,
+and the variable is there to add a development id alongside it.
+
+**What breaks without it.** Nothing visible, which is the trap. Any website in
+the world could have called the API from a visitor's browser and spent the
+shared free tier.
+
+**The important limitation.** CORS does not stop anybody. It is enforced by
+browsers, voluntarily, to protect their own users. `curl`, a script, or any
+server ignores it completely and will get a perfectly normal reply. So this
+narrows accidental and casual abuse from web pages, and it is not the thing
+protecting the budget. The per install and global quotas are, because those are
+enforced on the server where nobody can opt out.
+
+**Interview questions**
+
+*Q: If CORS can be bypassed with curl, why bother?*
+A: Because it defends a specific attack it is good at: a web page running in
+someone else's browser quietly using your API, with their IP and their session.
+That is the case the browser can police and you cannot detect easily. It does
+nothing against a determined caller, which is why it is paired with server side
+quotas. Layers answer different threats, and the mistake is assuming the
+browser side layer is a security boundary rather than a courtesy one.
+
+*Q: Why hard code the extension id instead of putting it entirely in config?*
+A: Blast radius. Config can be missing, misspelled or lost in a migration, and
+here the failure mode would be a total outage for every user at once, with a
+symptom (requests blocked by the browser) that looks nothing like its cause. A
+constant makes the working state the default and leaves config for additions.
+The general rule: let configuration extend safe defaults rather than being
+required to produce them.

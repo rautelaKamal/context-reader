@@ -1,26 +1,33 @@
 /**
- * The API is called from the extension's content script, which sends the page's
- * origin - so the previous `*` meant any website could spend the project's
- * inference budget. Allow extension origins and our own site, and let the rate
- * limiter handle what is left.
+ * Who is allowed to call the API.
+ *
+ * The browser sends the caller's origin, and this decides whether to echo it
+ * back. Only the published extension and any ids named in the environment get
+ * through. Previously any chrome-extension:// origin and any *.vercel.app host
+ * were accepted, which is close to no restriction at all: extension ids are
+ * public, and anyone can deploy to vercel.app.
+ *
+ * This is a seatbelt, not a lock. Browsers enforce it; curl and server side
+ * scripts ignore it entirely. The per install and global quotas are what
+ * actually bound the cost.
  */
 
-const ALLOWED_SUFFIXES = ['.vercel.app'];
+/** The published extension. A constant so production cannot break if the env is unset. */
+const STORE_EXTENSION_ID = 'jncoindjikmapfahhnljenbplfboglhf';
 
-function isAllowed(origin: string): boolean {
-  if (origin.startsWith('chrome-extension://')) return true;
-  if (origin.startsWith('moz-extension://')) return true;
-  if (origin.startsWith('safari-web-extension://')) return true;
+function allowedOrigins(): Set<string> {
+  const extra = (process.env.ALLOWED_EXTENSION_IDS ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
 
-  try {
-    const { hostname, protocol } = new URL(origin);
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
-    if (protocol !== 'https:') return false;
-    if (hostname === 'context-reader.vercel.app') return true;
-    return ALLOWED_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
-  } catch {
-    return false;
+  const origins = [STORE_EXTENSION_ID, ...extra].map((id) => `chrome-extension://${id}`);
+
+  // Only while developing. A production deployment never trusts localhost.
+  if (process.env.NODE_ENV === 'development') {
+    origins.push('http://localhost:3000', 'http://127.0.0.1:3000');
   }
+  return new Set(origins);
 }
 
 export function corsHeaders(request: Request): Record<string, string> {
@@ -33,7 +40,7 @@ export function corsHeaders(request: Request): Record<string, string> {
     Vary: 'Origin',
   };
 
-  if (origin && isAllowed(origin)) {
+  if (origin && allowedOrigins().has(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
   }
   return headers;
