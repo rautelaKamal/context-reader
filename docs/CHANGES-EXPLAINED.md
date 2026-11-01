@@ -530,3 +530,64 @@ Making the dangerous artifact impossible to produce removes the chance to get
 it wrong, which is the same reason a type is better than a comment saying "do
 not pass null here". The limit is that structure is less flexible, so it suits
 rules that should always hold, and a flag still suits a genuine choice.
+
+---
+
+## Cut the query string and fragment off the page address
+
+**What changed.** The extension used to send the whole page address. It now
+sends only the site and the path, so
+`https://mail.example.com/thread/42?token=abc123&q=divorce#msg-7` leaves as
+`https://mail.example.com/thread/42`. This happens in three places: where the
+address is collected, again in the service worker before the request goes out,
+and once more on the server for older installed copies that still send the
+whole thing.
+
+**Why.** Everything after a `?` or a `#` is the part of a URL most likely to
+contain something private. Session tokens, password reset links, invitation
+links, search terms, document ids and order numbers all live there, and none of
+it is anything this tool needs. The address is used for one job, recognising
+what kind of page you are on, which reads the host and the path and nothing
+else.
+
+This is data minimisation: do not collect what you do not need. It is cheaper
+than protecting it. Data you never received cannot leak, cannot be subpoenaed,
+cannot be in a backup you forgot about, and does not have to be explained in a
+privacy policy.
+
+**Why three times.** They are not redundant, they cover different situations.
+Stripping where it is collected means the browser never holds a full address in
+a variable headed for the network. Stripping in the service worker covers
+everything that calls out, including anything added later, which is the one
+choke point where the promise can actually be guaranteed. Stripping on the
+server covers the people who have not updated yet, who will keep sending the
+full address for days or weeks.
+
+**What breaks without it.** Reading a passage on a page whose address contains
+your session token sends that token to a server and then to Google. Nothing
+would misbehave, and nobody would notice.
+
+**A test caught something while being written.** The first version of the test
+failed, and the reason was not the code: the fake browser used in the tests had
+no `URL` object, so `new URL(...)` threw, the worker's own `try/catch` caught
+it, and the address came back as nothing. That is the dangerous shape of error,
+because "nothing" looked like a pass for two of the four assertions. The stub
+now provides `URL`, which is the second time an incomplete stand-in has
+produced a convincing wrong answer.
+
+**Interview questions**
+
+*Q: Why strip it in the client at all, when the server throws it away too?*
+A: Because the guarantee is different. Stripping on the server means the data
+was transmitted, reached a machine you operate, probably appeared in a load
+balancer log, and was discarded after arrival. Stripping in the client means it
+never left the device at all. If you want to be able to say "your session
+tokens are never sent to us", only the client side version makes that true. The
+server side strip is a safety net for old clients, not the main protection.
+
+*Q: What is the general principle, and where does it stop?*
+A: Collect the minimum that makes the feature work, and prefer not having data
+to securing it. It stops where the feature stops working: here the path is kept
+because the product genuinely uses it to tell an editorial from a research
+paper. The question to ask of every field is "what breaks if this is absent",
+and if the answer is nothing, it should not be sent.

@@ -20,6 +20,11 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
     AbortSignal: { timeout: () => undefined },
     navigator: { onLine: true },
     crypto: globalThis.crypto,
+    // A real service worker has these as globals. Without them the worker's
+    // own try/catch swallows a ReferenceError and the test sees a plausible
+    // wrong answer rather than a crash.
+    URL: globalThis.URL,
+    JSON: globalThis.JSON,
     fetch: async (url, init) => {
       calls.push({ url, body: JSON.parse(init.body), headers: init.headers });
       return {
@@ -69,6 +74,54 @@ const todayKey = () => {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 };
+
+test('what actually leaves the browser', async (t) => {
+  const SECRET = 'eyJhbGciOiJIUzI1NiJ9-session-token';
+
+  await t.test('a query string and fragment are stripped from the page address', async () => {
+    const { send, calls } = bootWorker();
+    await send({
+      type: 'explain',
+      payload: {
+        selection: 'a passage',
+        url: `https://mail.example.com/thread/42?token=${SECRET}&q=divorce#msg-7`,
+      },
+    });
+    assert.equal(calls[0].body.url, 'https://mail.example.com/thread/42');
+  });
+
+  await t.test('neither the token nor the fragment appears anywhere in the request', async () => {
+    const { send, calls } = bootWorker();
+    await send({
+      type: 'explain',
+      payload: {
+        selection: 'a passage',
+        url: `https://mail.example.com/thread/42?token=${SECRET}&q=divorce#msg-7`,
+      },
+    });
+    // The whole serialised body, not just the url field, in case some other
+    // field ever starts carrying the address.
+    const sent = JSON.stringify(calls[0].body);
+    assert.ok(!sent.includes(SECRET), 'the token never leaves');
+    assert.ok(!sent.includes('q=divorce'), 'the search terms never leave');
+    assert.ok(!sent.includes('msg-7'), 'the fragment never leaves');
+  });
+
+  await t.test('the origin and path survive, because mode detection needs them', async () => {
+    const { send, calls } = bootWorker();
+    await send({
+      type: 'explain',
+      payload: { selection: 'x', url: 'https://www.thehindu.com/opinion/editorial/a/article1.ece?utm_source=x' },
+    });
+    assert.equal(calls[0].body.url, 'https://www.thehindu.com/opinion/editorial/a/article1.ece');
+  });
+
+  await t.test('a malformed address is dropped rather than passed through', async () => {
+    const { send, calls } = bootWorker();
+    await send({ type: 'explain', payload: { selection: 'x', url: 'not a url at all' } });
+    assert.equal(calls[0].body.url, undefined);
+  });
+});
 
 test('install id', async (t) => {
   await t.test('is sent with the request, so the server can count this install', async () => {

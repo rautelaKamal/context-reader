@@ -104,10 +104,25 @@ const RETRY_ONCE = new Set([500, 502, 503, 504]);
 // stalls for tens of seconds. Without a ceiling the card just spins forever.
 const TIMEOUT_MS = { fast: 30_000, deep: 120_000 };
 
+/** Origin and path only. See the note in content.js. */
+function cleanUrl(href) {
+  try {
+    const { origin, pathname } = new URL(href);
+    return origin + pathname;
+  } catch {
+    return undefined;
+  }
+}
+
 async function call(endpoint, payload) {
   const base = await apiBase();
   const budget = TIMEOUT_MS[payload?.depth === 'deep' ? 'deep' : 'fast'];
   const id = await installId();
+
+  // Stripped again here rather than trusting the caller. This is the single
+  // place anything leaves the browser, so it is the place the guarantee is
+  // worth making.
+  const body = payload?.url ? { ...payload, url: cleanUrl(payload.url) } : payload;
 
   let response;
   try {
@@ -117,7 +132,7 @@ async function call(endpoint, payload) {
         'Content-Type': 'application/json',
         ...(id ? { 'X-Install-Id': id } : {}),
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(budget),
     });
   } catch (error) {

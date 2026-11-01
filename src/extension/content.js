@@ -208,6 +208,22 @@
     }
   }
 
+  /**
+   * Origin and path only. A query string or fragment can carry a session
+   * token, a password reset link, a document id or a search term, and none of
+   * that is needed: mode detection looks at the host and the path.
+   * Duplicated in background.js because these are separate plain scripts with
+   * no module system between them.
+   */
+  function cleanUrl(href) {
+    try {
+      const { origin, pathname } = new URL(href);
+      return origin + pathname;
+    } catch {
+      return undefined;
+    }
+  }
+
   function collectContext(range, selection) {
     const block = blockAncestor(range.commonAncestorContainer);
     return {
@@ -215,7 +231,7 @@
       markedParagraph: markedParagraph(range, block),
       precedingParagraph: previousBlockText(block),
       title: document.title || undefined,
-      url: location.href,
+      url: cleanUrl(location.href),
     };
   }
 

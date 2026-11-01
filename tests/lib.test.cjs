@@ -128,6 +128,16 @@ test('request parsing', async (t) => {
     assert.equal(parseContext({ text: 'hello there' }).selection, 'hello there');
   });
 
+  await t.test('strips a query string and fragment from an older extension', () => {
+    // Extensions installed before this change still send the whole address.
+    const parsed = parseContext({
+      selection: 'x',
+      url: 'https://mail.example.com/thread/42?token=secret-value&q=divorce#msg-7',
+    });
+    assert.equal(parsed.url, 'https://mail.example.com/thread/42');
+    assert.ok(!JSON.stringify(parsed).includes('secret-value'));
+  });
+
   await t.test('derives the site from the url', () => {
     assert.equal(parseContext({ selection: 'x', url: 'https://www.thehindu.com/opinion/a' }).site,
       'thehindu.com');

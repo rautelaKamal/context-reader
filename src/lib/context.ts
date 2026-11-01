@@ -33,6 +33,21 @@ function str(value: unknown, max: number): string | undefined {
   return cleaned.slice(0, max);
 }
 
+/**
+ * Origin and path only. Updated extensions strip this before sending, but
+ * older installed copies still send the whole address, so it is discarded
+ * here too rather than reaching a log or the model.
+ */
+function withoutQuery(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    const { origin, pathname } = new URL(url);
+    return origin + pathname;
+  } catch {
+    return undefined;
+  }
+}
+
 function siteFrom(url?: string): string | undefined {
   if (!url) return undefined;
   try {
@@ -55,7 +70,7 @@ export function parseContext(body: unknown): PassageContext {
     throw new ValidationError('No text was selected');
   }
 
-  const url = str(raw.url, 500);
+  const url = withoutQuery(str(raw.url, 500));
 
   return {
     selection,
