@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { spend, dayWindow, COST } = require('../.test-build/quota');
+const { spend, dayWindow, COST, limitsFromEnv } = require('../.test-build/quota');
 
 const LIMITS = { perInstall: 30, perIp: 90, global: 2000, dayOffsetMinutes: 0 };
 
@@ -122,17 +122,30 @@ test('daily quota', async (t) => {
     assert.equal(valueOfKind(r.store, 'p'), 1, 'the address is still counted');
   });
 
-  await t.test('lets the request through when there is no store', async () => {
-    const d = await spend(null, { installId: 'a', ip: '1.1.1.1', cost: 1, limits: LIMITS });
+  await t.test('lets the request through when there is no store, and says so', async () => {
+    const warnings = [];
+    const d = await spend(null, {
+      installId: 'a', ip: '1.1.1.1', cost: 1, limits: LIMITS, log: (m) => warnings.push(m),
+    });
     assert.equal(d.ok, true);
     assert.equal(d.enforced, false, 'callers can tell this was not actually checked');
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /not? store configured|no store configured/i);
   });
 
-  await t.test('lets the request through when the store errors', async () => {
+  await t.test('lets the request through when the store errors, and warns every time', async () => {
     const failing = async () => { throw new Error('connection refused'); };
-    const d = await spend(failing, { installId: 'a', ip: '1.1.1.1', cost: 1, limits: LIMITS });
-    assert.equal(d.ok, true, 'a Redis outage must not stop people reading');
-    assert.equal(d.enforced, false);
+    const warnings = [];
+    const log = (m) => warnings.push(m);
+    for (let i = 0; i < 3; i++) {
+      const d = await spend(failing, { installId: 'a', ip: '1.1.1.1', cost: 1, limits: LIMITS, log });
+      assert.equal(d.ok, true, 'a Redis outage must not stop people reading');
+      assert.equal(d.enforced, false);
+    }
+    // Not once per process: while this is happening nothing caps spending, so
+    // the number of these lines is the size of the problem.
+    assert.equal(warnings.length, 3);
+    assert.match(warnings[0], /connection refused/, 'the cause is in the message');
   });
 
   await t.test('never writes a raw address or install id into a key', async () => {
@@ -153,7 +166,52 @@ test('daily quota', async (t) => {
   });
 });
 
+test('limits from the environment', async (t) => {
+  await t.test('the day boundary defaults to India, matching what the extension promises', () => {
+    const before = process.env.QUOTA_DAY_OFFSET_MINUTES;
+    delete process.env.QUOTA_DAY_OFFSET_MINUTES;
+    try {
+      assert.equal(limitsFromEnv().dayOffsetMinutes, 330);
+    } finally {
+      if (before !== undefined) process.env.QUOTA_DAY_OFFSET_MINUTES = before;
+    }
+  });
+
+  await t.test('an explicit zero still means UTC', () => {
+    const before = process.env.QUOTA_DAY_OFFSET_MINUTES;
+    process.env.QUOTA_DAY_OFFSET_MINUTES = '0';
+    try {
+      assert.equal(limitsFromEnv().dayOffsetMinutes, 0);
+    } finally {
+      if (before === undefined) delete process.env.QUOTA_DAY_OFFSET_MINUTES;
+      else process.env.QUOTA_DAY_OFFSET_MINUTES = before;
+    }
+  });
+});
+
 test('day window', async (t) => {
+  await t.test('23:59 and 00:01 in India fall on different quota days', () => {
+    // India is UTC+5:30, so its midnight is 18:30 the previous day in UTC.
+    const lateTonight = Date.UTC(2026, 0, 1, 18, 29);   // 23:59 IST, 1 Jan
+    const justAfterMidnight = Date.UTC(2026, 0, 1, 18, 31); // 00:01 IST, 2 Jan
+
+    assert.notEqual(
+      dayWindow(330, lateTonight).key,
+      dayWindow(330, justAfterMidnight).key,
+      'two minutes apart, but a new allowance',
+    );
+    assert.equal(
+      dayWindow(0, lateTonight).key,
+      dayWindow(0, justAfterMidnight).key,
+      'on UTC both are still 1 January, which is the bug the offset fixes',
+    );
+  });
+
+  await t.test('the reset time it reports is that Indian midnight', () => {
+    const lateTonight = Date.UTC(2026, 0, 1, 18, 29);
+    assert.equal(dayWindow(330, lateTonight).resetAt, Date.UTC(2026, 0, 1, 18, 30) / 1000);
+  });
+
   await t.test('reset time is the next boundary', () => {
     const now = Date.UTC(2026, 0, 1, 12);
     const { resetAt } = dayWindow(0, now);

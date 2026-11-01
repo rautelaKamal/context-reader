@@ -48,7 +48,10 @@ export function limitsFromEnv(): Limits {
     perInstall: num('DAILY_PER_INSTALL', 30),
     perIp: num('DAILY_PER_IP', 90),
     global: num('DAILY_GLOBAL_BUDGET', 2000),
-    dayOffsetMinutes: Number(process.env.QUOTA_DAY_OFFSET_MINUTES) || 0,
+    // India by default, because that is where the readers are and because
+    // the extension tells them the allowance resets at midnight. On UTC that
+    // sentence is wrong by five and a half hours.
+    dayOffsetMinutes: Number(process.env.QUOTA_DAY_OFFSET_MINUTES ?? 330),
   };
 }
 
@@ -77,8 +80,11 @@ export function clientIp(request: Request): string {
 
 export async function spend(
   pipeline: Pipeline | null,
-  { installId, ip, cost, limits, now }:
-  { installId: string | null; ip: string; cost: number; limits: Limits; now?: number },
+  { installId, ip, cost, limits, now, log = console.warn }:
+  {
+    installId: string | null; ip: string; cost: number; limits: Limits;
+    now?: number; log?: (message: string) => void;
+  },
 ): Promise<QuotaDecision> {
   const { key: day, resetAt } = dayWindow(limits.dayOffsetMinutes, now);
 
@@ -86,6 +92,8 @@ export async function spend(
   // break a working product over infrastructure. The global cap is the thing
   // this gives up, so an outage is worth knowing about.
   if (!pipeline) {
+    log('quota: no store configured, request allowed without being counted. '
+      + 'Nothing is enforcing the daily or global limits.');
     return { ok: true, remaining: limits.perInstall, resetAt, enforced: false };
   }
 
@@ -106,7 +114,11 @@ export async function spend(
     // Every other reply is the INCRBY result; the EXPIREs are housekeeping.
     totals = keys.map((_, i) => Number(replies[i * 2]));
     if (totals.some((n) => !Number.isFinite(n))) throw new Error('unexpected reply');
-  } catch {
+  } catch (error) {
+    // Every occurrence, not once: while this is happening there is no ceiling
+    // on spending, so the volume of these lines is the size of the problem.
+    log(`quota: store unreachable, request allowed without being counted. `
+      + `${error instanceof Error ? error.message : String(error)}`);
     return { ok: true, remaining: limits.perInstall, resetAt, enforced: false };
   }
 

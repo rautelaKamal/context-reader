@@ -428,3 +428,57 @@ history, and users never receive an individual commit. Bumping per commit
 produces numbers that mean nothing to anyone outside the repository and churns
 the manifest in every diff. Git already records the commits; the version
 records the releases.
+
+---
+
+## Warn whenever the quota is skipped, and put midnight in India
+
+**What changed.** Two small decisions made explicit.
+
+1. When a request is allowed because the Redis store was unreachable or
+   unconfigured, the server now writes a warning. Every time, not once.
+2. `QUOTA_DAY_OFFSET_MINUTES` now defaults to `330` instead of `0`, so the
+   counters roll over at midnight India time.
+
+**Why warn every time.** Allowing the request is the right call, since an
+outage in the counter should not stop people reading. The danger is that the
+right call is also silent: the product looks completely healthy while nothing
+at all is limiting spending. Logging once per process would be quieter and
+misleading, because these run as many short lived functions and "once" would
+mean once per cold start. Logging every occurrence makes the volume of lines
+equal to the size of the problem, which is the signal you actually want at
+three in the morning.
+
+**Why 330.** Days have to start somewhere, and computers default to UTC. The
+extension tells people their allowance "resets at midnight", and for a reader
+in India UTC midnight is 05:30 the next morning, so the promise was wrong by
+five and a half hours in the direction that annoys people: still blocked at
+breakfast. 330 minutes is UTC+5:30. The default is now the audience rather than
+the machine, and `0` still gets you UTC.
+
+A test pins this down with times two minutes apart: 23:59 and 00:01 India time
+land on different quota days, and the same two timestamps land on the *same*
+day when the offset is zero, which is exactly the bug being fixed.
+
+**What breaks without it.** Silence during an outage that removes the spending
+ceiling, and an allowance that reappears at 05:30 for people told it returns at
+midnight.
+
+**Interview questions**
+
+*Q: You log on every failed attempt rather than once. Is that not just noise?*
+A: It is only noise if the lines carry no information, and here each one marks
+a request that was charged to nobody. The count is the measurement: ten lines
+is a blip, ten thousand is an incident. Deduplicating would make a serious
+problem and a trivial one look identical, which is the opposite of what
+monitoring is for. The honest way to reduce volume is to alert on a rate rather
+than to print less.
+
+*Q: Why not store the user's own timezone and reset per person?*
+A: You could, and for a worldwide product you probably would. It costs you
+something though: the reset time becomes client supplied, so it can be lied
+about by resetting your clock, and you have to keep a timezone per install and
+reason about people who travel. One fixed boundary chosen to match where the
+readers actually are gets almost all of the benefit for none of that. If the
+audience spreads out, the right next step is a per install offset recorded at
+install time rather than trusting the clock on every request.
