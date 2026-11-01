@@ -24,12 +24,20 @@ export default function Privacy() {
           <li>the passage you selected</li>
           <li>the paragraph containing it, and the paragraph before it</li>
           <li>the page title</li>
-          <li>the page address</li>
+          <li>the page address, without its query string or fragment</li>
         </ul>
         <p>
           The surrounding paragraphs are the point of the tool rather than an extra: a line of
           verse cannot be read without the lines around it. Nothing is sent unless you ask for an
           explanation. Selecting text on its own sends nothing.
+        </p>
+        <p>
+          The address is cut back to the site and the path before it is sent, so
+          <code>example.com/thread/42?token=abc#msg-7</code> leaves as{' '}
+          <code>example.com/thread/42</code>. Everything after the <code>?</code> or the{' '}
+          <code>#</code> is removed inside your browser and never transmitted. Those parts
+          routinely carry sign-in tokens, password reset links and search terms, and the only
+          thing this tool needs the address for is recognising what kind of page you are on.
         </p>
 
         <h2>Where it goes</h2>
@@ -39,21 +47,35 @@ export default function Privacy() {
           therefore passes through Google, and is subject to Google&rsquo;s terms for that service.
         </p>
         <p>
-          One thing worth knowing: this service runs on Google&rsquo;s free tier, and Google may
-          use data sent to its free tier to improve its products. If that matters for what you are
-          reading, do not use the extension on it.
+          Read this part before you use it. The passage you select and the paragraphs around it
+          are sent to Google&rsquo;s Gemini API, because that is what writes the explanation.
+          This service runs on the free tier of that API, and{' '}
+          <strong>Google may use data sent to the free tier to improve its products</strong>.
+          That is Google&rsquo;s stated policy, not a possibility we are guessing at: see the{' '}
+          <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">
+            Gemini API terms
+          </a>. If what you are reading should not be used that way, do not use this extension
+          on it.
         </p>
 
         <h2>What is kept</h2>
         <p>
-          Nothing. The explanation service stores no passages, keeps no database of what anyone has
-          looked up, and writes no selected text to its logs. Errors are recorded without the text
-          that caused them. There are no accounts, so there is nothing to attach a history to.
+          No passage, page title or address is stored. The explanation service keeps no record of
+          what anyone has looked up and writes no selected text to its logs. Errors are recorded
+          without the text that caused them. There are no accounts, so there is nothing to attach
+          a history to.
         </p>
         <p>
-          The extension stores one thing on your own device: a count of how many explanations you
-          have used today, so the daily allowance can reset at midnight. It is a number and a date.
-          It never leaves your computer, and clearing your browser data removes it.
+          To apply the daily allowance it keeps three counters, each of them a number: one for
+          your install, one for your network address, and one for the service as a whole. Your
+          install identifier and your address are hashed before they are used as keys, so neither
+          is stored in a readable form, and the counters are deleted automatically after 48 hours.
+        </p>
+        <p>
+          On your own device the extension stores two things: a randomly generated install
+          identifier, which is not derived from anything about you and exists only so the
+          allowance can be counted, and a count of today&rsquo;s usage. Clearing your browser data
+          removes both.
         </p>
 
         <h2>What is not done</h2>

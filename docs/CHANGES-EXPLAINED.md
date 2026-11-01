@@ -591,3 +591,53 @@ to securing it. It stops where the feature stops working: here the path is kept
 because the product genuinely uses it to tell an editorial from a research
 paper. The question to ask of every field is "what breaks if this is absent",
 and if the answer is nothing, it should not be sent.
+
+---
+
+## Make the privacy policy match what the code actually does
+
+**What changed.** Three corrections to `/privacy`.
+
+1. The Google disclosure is now stated plainly, in bold, with a link to the
+   Gemini API terms: the passage is sent to Google, and on the free tier
+   Google may use it to improve its products.
+2. "What is kept" was wrong. It said the extension stores one thing locally
+   and the server stores nothing. The extension now stores two things, and the
+   server keeps hashed counters it did not have before.
+3. The address is described as what it now is: site and path, with a worked
+   example showing a token being removed.
+
+**Why.** A privacy policy is a promise, and these had drifted from the code
+during the last two changes. An out of date policy is worse than a vague one,
+because it is specific and wrong, and people are entitled to rely on it. The
+Chrome Web Store also asks you to certify that your disclosures are accurate,
+so this is a statement you are signing.
+
+The Google paragraph deliberately does not soften. The free tier is the
+cheapest option and it is paid for with data, which is a real trade and the
+reader is the one making it, so they have to be able to see it. Burying that
+in careful phrasing would be choosing the product's comfort over theirs. It
+also names it as Google's published policy with a link, so it does not read as
+our speculation and can be checked.
+
+**What breaks without it.** Nothing technical. You publish a document that
+tells people something untrue about where their reading goes, and certify it
+to a store review team.
+
+**Interview questions**
+
+*Q: Who should be responsible for keeping a privacy policy accurate?*
+A: Whoever changes the data flow, at the moment they change it. Treating the
+policy as a legal document that someone reviews annually guarantees drift,
+because the facts it describes live in code that changes weekly. The practical
+version is to treat it as part of the definition of done for any change that
+touches what is collected, sent or stored, the same way you would update an API
+doc. Here it drifted twice in one session, which is the normal rate.
+
+*Q: Is there a downside to disclosing the free tier data use so bluntly?*
+A: Some people will decide not to use it, and that is the system working
+rather than failing. The alternative is that they use it believing something
+untrue, find out later, and are right to be angry. Trust is the main asset of a
+tool that reads over your shoulder, and it is lost in exactly one event. If the
+disclosure costs too many users, the honest fix is to change the thing being
+disclosed by moving to a paid tier, not to describe it more gently.

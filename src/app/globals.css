@@ -217,3 +217,9 @@ mark {
   font-family: var(--ui); font-size: 14px; color: var(--ink-soft);
   margin-top: 34px;
 }
+
+.policy code {
+  font: 0.9em var(--font-mono, ui-monospace, monospace);
+  background: var(--paper-deep); padding: 1px 5px; border-radius: 3px;
+  overflow-wrap: anywhere;
+}
