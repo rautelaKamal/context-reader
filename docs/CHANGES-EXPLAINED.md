@@ -840,3 +840,69 @@ because later never comes and the knowledge of what was template fades. A
 cheap automated guard also helps: tools such as `knip` or `ts-prune` report
 unimported files and exports, and can run in CI so new dead files show up in
 review rather than years afterwards.
+
+---
+
+## Upgrade Next.js from 15.2.6 to 15.5.28
+
+**What changed.** `next` and `eslint-config-next` move from 15.2.6 to 15.5.28,
+the newest release in the 15 line. Major version 16 was deliberately not
+taken.
+
+**Why.** `npm audit` reported one critical, but the summary hides how much was
+underneath: that one line was the `next` package, and inside it were **35
+separate advisories, three of them critical**. All three criticals were remote
+code execution, which means an attacker running their own code on the server.
+Two were in the image optimisation feature and were fixed in 15.5.24. The
+third, triggered by SVG files, affected every version up to and including
+15.5.27. So 15.5.28 is not just "the newest". It is the first version that
+clears all of them, and nothing older would have been enough.
+
+Staying on 15 rather than jumping to 16 is about risk per change. A move
+within a major version is supposed to be backwards compatible, so the work is
+small and the security gain is large. A major version is where breaking
+changes are allowed, and mixing "patch three critical vulnerabilities" with
+"adapt to a new framework version" in one change means that if something
+breaks, you cannot tell which half caused it.
+
+**Before and after.**
+
+| | Before | After |
+|---|---|---|
+| audit total | 16 | 15 |
+| critical | 1 (3 advisories) | **0** |
+| advisories on `next` itself | 35 | **0** |
+
+`sharp`, the image processing library Next uses, also dropped off the list.
+
+**What is left, and why most of it does not matter here.** Of the remaining 15
+findings, 11 are in the linting toolchain, which is a development dependency:
+it runs on a developer's machine and in CI, and is never installed in
+production. The other 4 are one chain around `postcss`, a CSS processor. `next`
+still appears in the report only because it bundles its own pinned copy of
+`postcss`, and it has no advisories of its own. `postcss` runs once, during the
+build, over this project's own stylesheet. Its advisories involve
+attacker-controlled CSS, and there is no attacker-controlled CSS in a build of
+our own code.
+
+**What breaks without it.** Three known ways for a stranger to run code on the
+server stay open on a site that is live.
+
+**Interview questions**
+
+*Q: The audit said "1 critical". Why did you look further than that?*
+A: Because `npm audit` counts vulnerable packages, not vulnerabilities. One
+package can carry dozens of advisories, and the severity shown is only the
+worst of them. Reading the per advisory detail turned "one critical" into
+"three separate remote code execution bugs", and it also showed which exact
+version fixed the last one. Without that you can easily upgrade to a version
+that looks newer but still sits inside the affected range.
+
+*Q: Fifteen findings remain. How do you decide whether that is acceptable?*
+A: By asking, for each one, whether the vulnerable code can be reached by an
+attacker in this deployment. Dependencies used only for development never
+reach production. A build time tool processing only your own files has no
+attacker input. That leaves nothing on the request path, so the remainder is a
+maintenance item rather than an incident. The risk in this reasoning is that it
+has to be redone whenever the code changes, for example if the app ever
+started processing CSS that users upload.

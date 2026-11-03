@@ -21,7 +21,7 @@
     "qr": "python3 scripts/make-qr.py"
   },
   "dependencies": {
-    "next": "^15.2.6",
+    "next": "^15.5.28",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -33,7 +33,7 @@
     "@types/react-dom": "^19",
     "archiver": "^7.0.1",
     "eslint": "^9",
-    "eslint-config-next": "^15.2.6",
+    "eslint-config-next": "^15.5.28",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
