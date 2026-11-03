@@ -945,3 +945,51 @@ at the URL, none of which appears in this repository. For template icons that
 risk is negligible. For anything a user might have shared, such as a
 downloadable file or an image in a social preview, you would check request logs
 for traffic to that path before deleting it, or redirect it.
+
+---
+
+## Correct the README's description of rate limiting
+
+**What changed.** The "Notes and limitations" section of the README said rate
+limiting used an in-memory map in `src/lib/ratelimit.ts` that only limited per
+serverless instance. It now describes the Redis quota that replaced it: the
+three daily limits and their values, the India midnight rollover, hashed keys
+with a 48 hour expiry, and three honest caveats.
+
+**Why.** Phase A2 deleted `ratelimit.ts`, so the README pointed at a file that
+no longer exists and described a weakness the project no longer has. Out of
+date documentation usually errs by overstating what software does. This one
+understated it, which is unusual but still wrong: a reader assessing whether
+the API can be abused would have concluded the protection was nearly useless.
+
+The caveats are kept deliberately prominent, because a limitations section
+that lists only strengths is not one:
+
+* **It fails open.** If Redis is down, requests are allowed rather than
+  refused, so an outage removes the spending ceiling. Each one logs a warning.
+* **The address limit is shared.** Everyone behind one network, such as a
+  school or office, draws on the same 90.
+* **The install id is client generated.** It identifies a browser, not a
+  person, which is why the other two limits exist at all.
+
+**What breaks without it.** A newcomer reads the README, believes the API has
+almost no abuse protection, and either worries needlessly or, worse, goes
+looking for `ratelimit.ts` to fix and finds it missing.
+
+**Interview questions**
+
+*Q: Documentation that understates a system seems harmless. Why fix it?*
+A: Because documentation is how people decide what to trust and what to change.
+Understating a protection leads to wasted work rebuilding something that
+exists, or to wrong decisions made on a false premise, such as rejecting the
+tool on security grounds. Wrong in either direction is still wrong, and the
+specific symptom here, a pointer to a deleted file, makes every other claim in
+the document less believable.
+
+*Q: Why spell out the weaknesses in a README rather than just the features?*
+A: Because whoever reads that section is trying to judge risk, and the
+weaknesses are exactly what they need. Saying plainly that the quota fails open
+lets an operator decide whether to monitor Redis, and saying the install id is
+client generated stops someone treating it as a user identity. Stating limits
+openly also tends to build more trust than hiding them, since they will be
+found eventually.
