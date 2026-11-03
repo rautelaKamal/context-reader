@@ -69,19 +69,22 @@ export default function Home() {
 
       <main>
         <section className="hero wrap">
-          <div className="hero-copy">
+          {/* On phones the order is text, picture, actions, so the product shows on the first screen. */}
+          <div className="hero-text">
             <h1>Understand any hard sentence you read online.</h1>
             <p className="sub">
               You know every word. So why is it so hard? Select it, and ContextReader tells you what
               the writer actually means.
             </p>
+          </div>
+          <HeroLoop />
+          <div className="hero-actions">
             <Install />
             <ul className="trust" aria-label="At a glance">
               <li>Free</li><li>No sign-up</li><li>30 explanations a day</li><li>Open source</li>
             </ul>
             <WatchFilm />
           </div>
-          <HeroLoop />
         </section>
 
         <section className="wrap section" aria-labelledby="how">

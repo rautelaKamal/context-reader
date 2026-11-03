@@ -71,12 +71,16 @@ mark {
 .button.small { min-height: 44px; padding: 0 18px; font-size: 16px; border-radius: 12px; }
 
 .install { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 30px; }
-.mobile-only { display: none; }
+.touch-only { display: none; }
 .store-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 16px; font-weight: 600; }
-@media (max-width: 768px), (pointer: coarse) {
+/*
+ * Chosen by input type, not width: a narrow desktop window can still install
+ * the add-on, and a large tablet can't.
+ */
+@media (hover: none) and (pointer: coarse) {
   .desktop-only { display: none !important; }
-  .mobile-only { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
-  .mobile-only .button { width: 100%; }
+  .touch-only { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+  .touch-only .button { width: 100%; white-space: nowrap; }
 }
 
 /* ---------- header and footer ---------- */
@@ -99,8 +103,20 @@ mark {
 
 /* ---------- hero ---------- */
 
-.hero { display: grid; gap: 40px; align-items: center; padding-block: 36px 24px; }
-@media (min-width: 900px) { .hero { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 64px; padding-block: 56px 32px; } }
+.hero { display: grid; gap: 28px; align-items: center; padding-block: 28px 24px; grid-template-areas: "text" "visual" "actions"; }
+.hero-text { grid-area: text; }
+.hero-visual { grid-area: visual; }
+.hero-actions { grid-area: actions; }
+.hero-actions .install { margin-top: 0; }
+@media (min-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); column-gap: 64px; row-gap: 0; padding-block: 56px 32px;
+    grid-template-areas: "text visual" "actions visual"; align-items: start;
+  }
+  .hero-text { align-self: end; }
+  .hero-actions { margin-top: 30px; }
+  .hero-visual { align-self: center; }
+}
 .hero h1 {
   margin: 0; font-weight: 800; font-size: clamp(42px, 6.2vw, 74px); line-height: 1.02; letter-spacing: -0.042em;
   max-width: 13ch; text-wrap: balance;
@@ -119,12 +135,33 @@ mark {
 .hero-visual {
   /* The loop carries its own browser window and shadow, so it sits straight on the paper. */
   position: relative; aspect-ratio: 1; overflow: hidden; background: var(--paper);
+  width: 100%; max-width: 560px; justify-self: center;
 }
-.hero-visual img, .hero-visual .loop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-/* A hard switch, never a crossfade: layered, the poster and the loop would show two passages at once. */
-.hero-visual .loop { opacity: 0; }
-.hero-visual .loop.ready { opacity: 1; }
-.hero-visual img.gone { visibility: hidden; }
+@media (max-width: 600px) {
+  .hero-visual { aspect-ratio: 4 / 5; }
+  /* Scales with the screen so a 320px phone still sees the product on its first screen. */
+  .hero h1 { font-size: clamp(34px, 10.4vw, 48px); }
+  .hero .sub { font-size: 18px; margin-top: 16px; }
+}
+/* Phones on their side: text and picture side by side, so both fit the first screen. */
+@media (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .hero {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); column-gap: 32px; row-gap: 16px; padding-block: 16px;
+    grid-template-areas: "text visual" "actions visual"; align-items: start;
+  }
+  .hero h1 { font-size: 38px; }
+  .hero .sub { font-size: 17px; margin-top: 12px; }
+  .hero-visual { max-width: 300px; aspect-ratio: 1; }
+}
+.hero-visual picture, .hero-visual img, .hero-visual .loop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/*
+ * The poster sits on top of the loop and is hidden once the loop plays: a hard
+ * switch, never a crossfade, which would show two passages at once. The loop
+ * itself is never made transparent, because Safari won't autoplay a video it
+ * considers invisible.
+ */
+.hero-visual picture { z-index: 1; }
+.hero-visual .gone { visibility: hidden; }
 
 /* ---------- sections ---------- */
 
@@ -155,6 +192,9 @@ mark {
 }
 .film-dialog::backdrop { background: rgba(20, 33, 61, 0.78); }
 .film-dialog .film { border-radius: 18px; box-shadow: none; }
+/* The vertical cut, sized to the phone's height. */
+.film-dialog.tall { width: min(92vw, calc(82vh * 9 / 16)); }
+.film-dialog.tall .film { aspect-ratio: 9 / 16; }
 .film-close {
   position: absolute; right: 0; bottom: calc(100% + 10px); min-height: 44px; padding: 0 16px;
   border: 0; border-radius: 12px; cursor: pointer; background: #FFFFFF; color: var(--ink); font: 700 16px/1 var(--ui);

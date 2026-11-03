@@ -1391,3 +1391,56 @@ direction for images, a different picture for a different shape.
 A: The page shows a still poster first and swaps in the video at the
 poster's exact moment, so the swap is invisible. That only works if every
 version of the loop has that moment at the same time, five seconds in.
+
+---
+
+## Make the landing page work properly on phones
+
+**What changed.** Six fixes for phones, which bring most of the traffic:
+
+* **Hero loop sources.** The MP4 (H.264) source now comes before the WebM,
+  because iOS Safari can answer "maybe" for WebM and then fail without
+  trying the next source. The `muted` attribute is now written to the
+  element, not just set as a property, and the loop plays inline.
+* **Visible loop, poster on top.** The loop is never made transparent, since
+  Safari won't autoplay a video it considers invisible. The poster now covers
+  it and hides once playback starts. If the browser refuses to play (iOS Low
+  Power Mode, for example), the poster stays.
+* **Small screens get the 4:5 loop and poster,** chosen with `media` on the
+  video sources and a `<picture>` for the poster.
+* **Order on phones:** headline, subline, picture, button, trust strip, film
+  link, so the product is on the first screen. Phones held sideways get text
+  and picture side by side.
+* **The film on a phone held upright is the vertical cut,** loaded only when
+  someone asks for it.
+* **"Send to my laptop" replaces "Works on desktop Chrome. Copy link".** It
+  opens the phone's share sheet (WhatsApp, email, notes) where there is one,
+  and otherwise copies the link and says "Link copied".
+
+Which button shows is now decided by input type, `(hover: none) and
+(pointer: coarse)`, not by screen width, so a narrow desktop window still
+offers "Add to Chrome".
+
+**Why.** The page was built desktop-first, and phones got a squeezed version:
+the product picture below the first screen, a button that asked the reader to
+copy a link by hand, and a loop that might not play on iPhones at all.
+
+**What breaks without it.** A phone visitor scrolls before seeing what the
+product does, may see a still image where a moving demo should be, and has no
+easy way to get the page onto the computer where the add-on actually runs.
+
+**Interview questions**
+
+*Q: Why decide the button by input type instead of screen width?*
+A: Because the question is "can this device install a Chrome extension", not
+"how wide is the window". A desktop user with a narrow window can install it,
+and a large tablet can't. `hover: none` together with `pointer: coarse`
+describes a touch-first device far better than a width does.
+
+*Q: How did you test iPhone behaviour without an iPhone?*
+A: With Playwright's WebKit browser and touch emulation, which shares Safari's
+engine. It confirmed the layout, the share sheet path and the vertical film.
+It also showed its limit: that WebKit build refuses even a plain `muted
+autoplay playsinline` video unless the user has interacted, which real iOS
+Safari allows. So it could prove the fallback (the poster stays) but not that
+the loop autoplays on a real iPhone. That still needs checking on a device.
