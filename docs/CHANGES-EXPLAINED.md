@@ -1321,3 +1321,42 @@ A: Keyboard and screen-reader users rely on focus to know where they are.
 If focus vanished to the top of the page when the modal closed, they'd lose
 their place and have to find their way back. Returning it to the button that
 opened the modal puts them exactly where they left off.
+
+---
+
+## Fix CI: type image imports without relying on a build file
+
+**What changed.** A new file, `src/types/images.d.ts`, tells TypeScript that
+importing an image (`import icon from '../../public/icon-128.png'`) is valid.
+It does this by pointing at the image types that ship with Next.js.
+
+**Why.** The redesigned page imports two images directly, so Next can work out
+their sizes. Those imports only typecheck if TypeScript knows what an imported
+`.png` or `.jpg` is. Normally `next-env.d.ts` tells it, but that file is
+gitignored and is only written by `next build`. On a developer's machine it's
+always there from an earlier build, so the typecheck passed locally. CI starts
+from a clean checkout and typechecks before it builds, so the file didn't
+exist yet and both Node versions failed with "Cannot find module". The fix was
+confirmed by moving `next-env.d.ts` away and seeing the same two errors, then
+adding this file and seeing them go.
+
+**What breaks without it.** Every push fails CI, even though the site itself
+builds and deploys. A red CI that people learn to ignore stops catching real
+problems.
+
+**Interview questions**
+
+*Q: Why did this pass on your machine but fail in CI?*
+A: My machine had a leftover file that CI didn't. `next-env.d.ts` is created by
+`next build` and gitignored, and my earlier builds had left it in place. CI
+checks out only what's committed and runs the typecheck first, so it saw the
+project as a fresh clone would. The general lesson: when something passes
+locally and fails in CI, look for state the local machine has that the
+repository doesn't, such as generated files, caches or environment variables.
+
+*Q: How do you reproduce a CI failure like this before pushing a fix?*
+A: Remove the local state CI doesn't have and run the same command in the
+same order. Here that meant moving `next-env.d.ts` aside, deleting
+`.next/types` and running `tsc`. That produced CI's exact errors, which proves
+the diagnosis, and then the fix can be checked the same way before anyone
+waits on another CI run.
