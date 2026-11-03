@@ -1,111 +1,215 @@
+import Image from 'next/image';
 import Link from 'next/link';
+import icon from '../../public/icon-128.png';
+import { DemoTabs } from './components/DemoTabs';
+import { Film } from './components/Film';
+import { HeroLoop } from './components/HeroLoop';
+import { Install, STORE } from './components/Install';
+import { Card, Passage, Pill } from './components/Product';
+import { output, said } from './components/outputs';
 
 const REPO = 'https://github.com/rautelaKamal/context-reader';
-const STORE = 'https://chromewebstore.google.com/detail/jncoindjikmapfahhnljenbplfboglhf';
 
-/** The lenses, in the order the extension offers them. */
-const LENSES = [
-  ['Plain meaning', 'The same thing said in ordinary English.'],
-  ["What's the point?", "The writer's position, what they are arguing against, and their tone — including irony, which is easy to read straight."],
-  ['Line by line', 'Verse worked through one line at a time, each line quoted as it stands.'],
-  ['How it works', 'Word choice, sound, where the line breaks, and words doing two jobs at once.'],
-  ['The jargon', 'Technical terms defined in the sense this particular text is using them.'],
+/** Plain lines about the lenses, in the order the extension offers them. */
+const LENSES: [string, string][] = [
+  ['Plain meaning', 'The same idea in everyday English.'],
+  ["What's the point?", "What the writer is arguing, who they're answering, and their tone."],
+  ['Line by line', 'A poem explained one line at a time.'],
+  ['How it works', 'How the writing gets its effect, through word choice, sound and rhythm.'],
+  ['The jargon', 'Technical words explained the way this text uses them.'],
 ];
 
+const FAQ: [string, React.ReactNode][] = [
+  ['Does it work on PDFs?', "Not in Chrome's built-in PDF viewer yet. It works on normal web pages."],
+  ['Does it work on my phone?', 'Not yet. It works in Chrome on a desktop or laptop.'],
+  ['Can it explain in other languages?', "Explanations are in English for now. Hindi is planned, but there's no date yet."],
+  ['Is it free?', 'Yes. No account, no card, no ads.'],
+  ["What's the daily limit?", <>30 explanations a day per browser, reset at midnight India time. &ldquo;Go deeper&rdquo; uses 3 of them. People on the same network, like a school or office, also share a limit of 90 a day. On a very busy day the whole service can reach its own limit.</>],
+  ['Is what I read stored?', <>No. Nothing you select is saved. See <a href="#privacy">Privacy</a> above.</>],
+  ['Can I check how it works?', <>Yes. The code is open source <a href={REPO}>on GitHub</a>.</>],
+];
+
+function Logo({ size }: { size: number }) {
+  return <Image src={icon} alt="" width={size} height={size} className="logo" />;
+}
+
 export default function Home() {
+  const ed = output('editorial');
+  const tabs = [
+    { id: 'editorial', label: 'Editorial', verse: false },
+    { id: 'poem', label: 'Poem', verse: true },
+    { id: 'research', label: 'Research', verse: false },
+    { id: 'legal', label: 'Legal', verse: false },
+  ].map(({ id, label, verse }) => {
+    const o = output(id);
+    // The full legal answer added background that isn't in the passage, so only its summary is shown (docs/eval-findings.md).
+    const legal = id === 'legal';
+    return {
+      id, label,
+      panel: (
+        <div className="demo-grid">
+          <div>
+            <p className="source">{o.request.title}</p>
+            <Passage before={o.request.precedingParagraph} marked={o.request.markedParagraph} verse={verse} />
+          </div>
+          <Card mode={o.response.mode} summary={o.response.summary} verse={verse} scroll
+            sections={legal ? [] : o.response.sections}
+            note={legal ? "Summary only. The full answer added background that isn't in the passage." : undefined} />
+        </div>
+      ),
+    };
+  });
+
   return (
     <>
-      <header className="bar">
-        <span className="wordmark">ContextReader</span>
-        <a href={REPO} target="_blank" rel="noopener noreferrer">Source</a>
-        <a href={STORE}>Add to Chrome</a>
+      <header className="bar wrap">
+        <Link href="/" className="brand"><Logo size={32} /><span>ContextReader</span></Link>
+        <a className="button small desktop-only" href={STORE}>Add to Chrome</a>
       </header>
 
-      <main className="page">
-        <h1 className="lede">Some sentences stop you even though you know every word.</h1>
-        <p className="standfirst">
-          An editorial whose argument you cannot quite pin down. A line of Shakespeare. A paragraph
-          in a paper outside your field. Select it, and ContextReader tells you what the writer is
-          actually saying.
-        </p>
-
-        <div className="demo">
-          <div className="passage">
-            <p>
-              If the recent acrimony over devolution is any indication,{' '}
-              <mark>
-                the Centre would do well to disabuse itself of the notion that federal comity is a
-                favour it bestows
-              </mark>{' '}
-              upon the States rather than an obligation the Constitution imposes.
+      <main>
+        <section className="hero wrap">
+          <div className="hero-copy">
+            <h1>Understand any hard sentence you read online.</h1>
+            <p className="sub">
+              You know every word. So why is it so hard? Select it, and ContextReader tells you what
+              the writer actually means.
             </p>
-            <p className="source">A newspaper editorial, selected mid-sentence.</p>
+            <Install />
+            <ul className="trust" aria-label="At a glance">
+              <li>Free</li><li>No sign-up</li><li>30 explanations a day</li><li>Open source</li>
+            </ul>
           </div>
+          <HeroLoop />
+        </section>
 
-          <aside className="note">
-            <h2>Their position</h2>
-            <p>
-              The central government must stop treating cooperation with the states as a gift it
-              chooses to give, and recognise it as a constitutional duty.
-            </p>
-            <h2>Responding to</h2>
-            <p>
-              Southern states are disputing how tax revenue is shared, arguing they are penalised
-              for having controlled their populations.
-            </p>
-            <h2>Tone</h2>
-            <p className="field">
-              Stern and corrective. &ldquo;Would do well to disabuse itself&rdquo; is a warning
-              dressed as advice.
-            </p>
-          </aside>
-        </div>
+        <section className="wrap section" aria-labelledby="film">
+          <h2 id="film">See it in 35 seconds.</h2>
+          <Film />
+        </section>
 
-        <div className="actions">
-          <a className="install" href={STORE}>Add to Chrome</a>
-          <span className="terms">Free. 30 explanations a day, resetting at midnight.</span>
-        </div>
-
-        <section className="section">
-          <h2 className="section-lede">
-            A sonnet and a transformer paper need different things said about them.
-          </h2>
-          <dl className="lenses section-body">
-            {LENSES.map(([name, what]) => (
-              <div className="lens" key={name}>
-                <dt>{name}</dt>
-                <dd>{what}</dd>
+        <section className="wrap section" aria-labelledby="how">
+          <h2 id="how">Three steps. No account.</h2>
+          <ol className="steps">
+            <li>
+              <h3>Install</h3>
+              <p>Add ContextReader to Chrome from the Chrome Web Store.</p>
+            </li>
+            <li>
+              <h3>Select any text</h3>
+              <p>Highlight the sentence that lost you. An Explain button appears. Click it, or press Ctrl+Shift+E (⌘⇧E on a Mac).</p>
+              <div className="step-visual" aria-hidden="true">
+                <p className="mini-passage">The new heat action plan is, on paper, admirable. <mark>It would not be unfair to say&hellip;</mark></p>
+                <Pill />
               </div>
+            </li>
+            <li>
+              <h3>Read the explanation</h3>
+              <p>A card opens right under the text. Answers usually arrive in a few seconds.</p>
+              <div className="step-visual" aria-hidden="true">
+                <Card mode={ed.response.mode} summary={ed.response.summary} />
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section className="wrap section" aria-labelledby="try">
+          <h2 id="try">Try it on these.</h2>
+          <p className="intro">These are real answers from ContextReader. We saved them once and show them here unchanged.</p>
+          <DemoTabs tabs={tabs} />
+        </section>
+
+        <section className="wrap section" aria-labelledby="for">
+          <h2 id="for">Made for anyone who reads hard English.</h2>
+          <div className="cards">
+            <article>
+              <h3>Exam prep</h3>
+              <p className="who">UPSC, CAT VARC, CLAT, GRE, GMAT, IELTS</p>
+              <p>Reading passages ask for the writer&rsquo;s view and tone. Is &ldquo;less a strategy than an apology written in advance&rdquo; praise or mockery? ContextReader&rsquo;s answer begins:</p>
+              <blockquote>&ldquo;{said('editorial', "The writer argues that the city's belated heat action plan is a useless cover-up rather than a genuine strategy.")}&rdquo;</blockquote>
+            </article>
+            <article>
+              <h3>Students and researchers</h3>
+              <p>A paper outside your field. For &ldquo;natural selection&rdquo; in Darwin, The jargon gives the meaning that page uses:</p>
+              <blockquote>&ldquo;{said('research', 'The mechanism where organisms with traits better suited to their environment tend to survive and reproduce more than those with less suited traits.')}&rdquo;</blockquote>
+            </article>
+            <article>
+              <h3>Professionals</h3>
+              <p>Court judgments, contracts and policy papers. Asked about a passage from Marbury v. Madison, ContextReader answered, word for word:</p>
+              <blockquote>&ldquo;{said('legal', 'When an ordinary law and the constitution both apply to a court case but contradict each other, judges are forced to choose which rule wins.')}&rdquo;</blockquote>
+            </article>
+            <article>
+              <h3>Non-native readers</h3>
+              <p>Politeness that hides criticism is easy to miss. &ldquo;It would not be unfair to say&rdquo; sounds gentle. ContextReader calls the tone:</p>
+              <blockquote>&ldquo;{said('editorial', 'Sardonic and dismissive, driven by the dry understatement')}&hellip;&rdquo;</blockquote>
+            </article>
+          </div>
+        </section>
+
+        <section className="wrap section" aria-labelledby="lenses">
+          <h2 id="lenses">Five ways to look at the same sentence.</h2>
+          <dl className="lenses">
+            {LENSES.map(([name, what]) => (
+              <div key={name}><dt>{name}</dt><dd>{what}</dd></div>
             ))}
           </dl>
         </section>
 
-        <section className="section">
-          <h2 className="section-lede">It reads the paragraph, not just the words you picked.</h2>
-          <div className="section-body">
-            <p className="section-note">
-              You cannot say what a line of verse means from the line alone, and you cannot explain
-              what an editorial argues against without the sentences that set it up. So the passage
-              arrives with its surroundings, and the part you chose marked inside them.
-            </p>
-            <p className="context">
-            <span className="dim">The decision to defer the census has been defended on
-            administrative grounds.</span>{' '}
-            <span className="guillemet">«</span>But the argument wears thin in its fourth
-            year.<span className="guillemet">»</span>{' '}
-            <span className="dim">Every month of delay compounds an already serious
-              deficit.</span>
-            </p>
+        <section className="wrap section" aria-labelledby="different">
+          <h2 id="different">It reads like a careful reader.</h2>
+          <div className="points">
+            <div>
+              <h3>It reads the whole paragraph.</h3>
+              <p>Your selection is sent with the paragraph around it and the one before, because meaning often depends on what came first.</p>
+            </div>
+            <div>
+              <h3>It quotes its evidence.</h3>
+              <p>When it relies on certain words, it quotes them exactly, so you can check them on the page.</p>
+            </div>
+            <div>
+              <h3>It catches irony and tone.</h3>
+              <p>It tells you when a writer is being sarcastic, dry, or polite but angry.</p>
+            </div>
           </div>
         </section>
 
-        <footer className="foot">
-          <span>Built by Kamal Singh Rautela</span>
-          <a href={REPO} target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+        <section className="wrap section privacy" id="privacy" aria-labelledby="privacy-h">
+          <h2 id="privacy-h">We never keep what you read.</h2>
+          <div>
+          <ul>
+            <li>Nothing is sent until you click Explain or press the shortcut.</li>
+            <li>Then it sends four things: the text you selected, the paragraph it&rsquo;s in and the one before, the page title, and the page address with everything after <strong>?</strong> or <strong>#</strong> removed.</li>
+            <li>Our server passes the text to Google&rsquo;s Gemini, which writes the explanation. Google may use text sent to its free service to improve its products, so don&rsquo;t use ContextReader on anything private.</li>
+            <li>We store none of it. To count the daily limit we keep three numbers. Your install ID and network address are scrambled (hashed) before we use them, and the numbers are deleted after 48 hours.</li>
+            <li>No accounts, no ads, no tracking.</li>
+          </ul>
+          <p><Link href="/privacy">Read the full privacy policy</Link></p>
+          </div>
+        </section>
+
+        <section className="wrap section" aria-labelledby="faq">
+          <h2 id="faq">Questions.</h2>
+          <div className="faq">
+            {FAQ.map(([q, a]) => (
+              <details key={q}><summary>{q}</summary><p>{a}</p></details>
+            ))}
+          </div>
+        </section>
+
+        <section className="wrap section final" aria-labelledby="final">
+          <h2 id="final">Next time a sentence stops you, select it.</h2>
+          <Install />
+        </section>
+      </main>
+
+      <footer className="wrap site-foot">
+        <span className="brand"><Logo size={28} /><span>Built by Kamal Singh Rautela</span></span>
+        <nav aria-label="Footer">
+          <a href={REPO}>GitHub</a>
           <Link href="/test">Passages to try it on</Link>
           <Link href="/privacy">Privacy</Link>
-        </footer>
-      </main>
+        </nav>
+      </footer>
     </>
   );
 }

@@ -1,32 +1,47 @@
 import type { Metadata } from 'next';
-import { Literata, IBM_Plex_Sans } from 'next/font/google';
+import { Inter, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
 
-// Literata was drawn for reading books on screens, which is the whole subject
-// of this page. Plex Sans carries the interface without competing with it.
-const literata = Literata({
+// The product film's type: Inter, heavy and tight, for everything said about
+// the tool; Source Serif 4 for the passages themselves.
+const inter = Inter({ variable: '--font-ui', subsets: ['latin'], display: 'swap' });
+const serif = Source_Serif_4({
   variable: '--font-reading',
   subsets: ['latin'],
+  style: ['normal', 'italic'],
   display: 'swap',
+  // Only passages below the fold use it, so it shouldn't compete with the first paint.
+  preload: false,
 });
 
-const plex = IBM_Plex_Sans({
-  variable: '--font-ui',
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  display: 'swap',
-});
+const TITLE = 'ContextReader: understand any hard sentence you read online';
+const DESCRIPTION =
+  'A free Chrome add-on. Select a sentence that confuses you and get what the writer actually means, in plain English.';
 
 export const metadata: Metadata = {
-  title: 'ContextReader — what the writer actually means',
-  description:
-    'Select a passage that lost you. ContextReader reads it in context and tells you what the writer is actually saying.',
+  metadataBase: new URL('https://context-reader.vercel.app'),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/',
+    siteName: 'ContextReader',
+    type: 'website',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'ContextReader: understand any hard sentence you read online. A free Chrome add-on.' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ['/og.png'],
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${literata.variable} ${plex.variable}`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${serif.variable}`} suppressHydrationWarning>
         {children}
       </body>
     </html>

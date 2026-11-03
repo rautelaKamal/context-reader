@@ -1229,3 +1229,56 @@ costs some bandwidth, but nothing is loaded until someone clicks play.
 A: The browser picks the first format it can play. Listing WebM first lets
 browsers that support it download the smaller file, and MP4 second covers
 the rest, so everyone gets the loop without anyone downloading both.
+
+---
+
+## Redesign the landing page in the film's identity
+
+**What changed.** The front page is rebuilt around the product film's look:
+
+* paper background, navy ink, yellow only where meaning is highlighted, blue
+  for links and trust lines
+* Inter for headings and interface text, Source Serif 4 for passages
+
+It now has a hero with a short loop, the film, three steps, a tab demo of real
+answers, who it's for, the five lenses, what makes it different, privacy in
+plain words, and honest questions and answers. `/privacy` and `/test` keep
+their content and pick up the new styling.
+
+**Why.** The old page spoke to a reader who already knew what the tool was.
+The new one is written at about a Class 8 reading level for the people who
+need it most: exam takers, students, professionals and non-native readers.
+A few rules are built into the code rather than left to memory:
+
+* **Real answers only.** Every phrase shown as ContextReader's answer passes
+  through `said()`, which stops the build unless the text appears word for
+  word in `content/demo-outputs.json`. A paraphrase can't slip in.
+* **The legal demo shows only its summary,** with a note saying so, because
+  the full answer added background that isn't in the passage.
+* **The privacy section lists the same four things as `/privacy`,** and
+  promises nothing more.
+* **No analytics and no third-party scripts.** The hero loop waits until the
+  page is idle, never plays for readers who ask for less motion, and swaps
+  in without a crossfade. The film loads only when someone presses play.
+* **On phones, where the add-on can't run,** "Add to Chrome" becomes a button
+  that copies the link.
+
+**What breaks without it.** Visitors who don't already know the product
+can't tell what it does or whether they can trust it. And without `said()`,
+a well-meant tidy-up of a quote could put words in the product's mouth.
+
+**Interview questions**
+
+*Q: Why make the build fail on a misquote instead of just being careful?*
+A: Because care fades and checks don't. The page makes a specific promise:
+these are real answers, unchanged. If someone later "improves" a quote's
+wording, the promise breaks silently. Checking each quote against the saved
+file at build time turns the promise into something the code enforces, at no
+cost to visitors since it runs before deployment.
+
+*Q: The hero is a video. Why does the page show an image first?*
+A: Speed and respect. The first thing a visitor sees should appear fast, and
+an image paints sooner than a video starts. The video is added only after the
+page has loaded and the browser is idle, starting at the same frame as the
+image so the switch can't be seen. If the visitor has asked their system for
+reduced motion, the video never loads at all.
