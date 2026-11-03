@@ -1029,3 +1029,37 @@ A: The saved answers are evidence, and regenerating them silently would swap
 in different, possibly better-looking ones. Requiring `--force` makes
 replacing them a deliberate act that shows up as a change in git, instead of
 something that happens by accident when someone reruns a script.
+
+---
+
+## Log an answer that used outside knowledge without saying so
+
+**What changed.** `docs/eval-findings.md` is a new log of real outputs that
+broke one of the prompt's rules. Its first entry is the *Marbury v. Madison*
+answer, which named "Chief Justice Marshall" and "judicial review" although
+neither appears in the passage. The prompt says anything known from outside
+the passage must be introduced as such ("Outside this passage..."), never
+stated as if it were read there.
+
+**Why.** Both facts are correct, which is exactly the danger: a reader can't
+tell what the tool read from what it remembered, and next time the memory may
+be wrong. The entry also records why the existing quote checker missed it. The
+checker only looks at text inside quotation marks, and this problem was in
+plain sentences. That gives Phase B, the grounding work, a concrete case to
+test against.
+
+**What breaks without it.** The finding would live only in a chat message and
+be forgotten, and Phase B would start from a guess instead of a real example.
+
+**Interview questions**
+
+*Q: If the facts were correct, why count this as a failure?*
+A: Because the product's promise is to explain what the page says. Mixing in
+unmarked outside knowledge breaks that promise even when it happens to be
+right, and the reader has no way to tell the difference. Rules like this are
+judged by the process, not by whether the output got lucky.
+
+*Q: Why keep a log of failures rather than just fixing the prompt?*
+A: A fix needs a test, and a test needs a real example of the failure. The log
+gives you inputs you know go wrong, so you can confirm a fix works and catch
+the problem if it comes back. Without it you're tuning against memory.
