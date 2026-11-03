@@ -1063,3 +1063,40 @@ judged by the process, not by whether the output got lucky.
 A: A fix needs a test, and a test needs a real example of the failure. The log
 gives you inputs you know go wrong, so you can confirm a fix works and catch
 the problem if it comes back. Without it you're tuning against memory.
+
+---
+
+## Record the icon research and keep the current icon
+
+**What changed.** `docs/icon-research.md` records research into a new icon:
+Chrome's official icon rules, Apple's and Google's advice on legible icons, a
+comparison of 15 similar extensions, and three concepts. It opens with the
+decision to keep the existing icon. The concept files and the comparison
+images live in `design-private/`, which `.gitignore` now keeps out of the
+repository.
+
+**Why.** The research turned up useful facts, such as the toolbar icon being
+16 device pixels and the store icon needing 16 pixels of transparent padding.
+Writing them down means nobody has to look them up again. The decision itself
+is worth recording too: the current icon's highlighted middle line already
+carries the highlight idea, it's more polished than the concepts, and users
+already recognise it. The comparison images contain other companies' icons, so
+they stay on this machine and are never published.
+
+**What breaks without it.** Someone proposes a redesign next year and redoes
+the same research, or commits other brands' icons to a public repository.
+
+**Interview questions**
+
+*Q: Why write up research that ended in "change nothing"?*
+A: Because "we looked and decided not to" is a decision, and decisions without
+reasons get reopened. The record shows what was considered, which rules apply,
+and why the current icon won, so the next discussion can start from there
+instead of from scratch.
+
+*Q: Why keep the competitor images out of git instead of just not linking
+them?*
+A: Anything committed to a public repository is published and stays in its
+history even if deleted later. Ignoring the folder means the images can't be
+committed by accident in a later `git add .`, which is safer than relying on
+everyone remembering not to.

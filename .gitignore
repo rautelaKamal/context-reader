@@ -53,3 +53,6 @@ public/_dev/
 # Locally captured corpus pages. The articles are copyrighted, so the
 # captures stay on the machine that made them.
 corpus-local/
+
+# Private design material, including other companies' icons. Never committed.
+design-private/
