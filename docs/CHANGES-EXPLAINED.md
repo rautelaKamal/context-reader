@@ -1192,3 +1192,40 @@ A: A fixed height cuts wherever it lands, often mid-sentence, which looks
 broken. Measuring where each section starts and clipping exactly there shows
 whole blocks, the way the real card looks when you've scrolled to a section
 boundary. It's honest to the product and reads cleanly.
+
+---
+
+## Add the landing page's media
+
+**What changed.** `public/media/` now holds:
+
+* the 35 second film (4.3 MB)
+* the hero loop, as WebM (541 KB) and MP4 (273 KB)
+* a poster image for each
+
+`public/og.png` is the social share image and `public/icon-128.png` is the
+current store icon. All of them were rendered from the film source in
+`video/`.
+
+**Why.** The page plays its own copy of the film instead of embedding
+YouTube. A YouTube embed sets tracking cookies, and the privacy policy says
+the site has no tracking, so embedding it would make the policy false. Files
+in `public/` are served straight from the site with nothing else attached.
+The loop comes in two formats because browsers differ: WebM is smaller where
+it's supported, and MP4 plays everywhere else.
+
+**What breaks without it.** The page has nothing to play. Embedding YouTube
+instead would quietly break a promise the privacy page makes.
+
+**Interview questions**
+
+*Q: Why self-host a video instead of using YouTube, which is free and fast?*
+A: Because of what comes with it. A YouTube embed loads Google's scripts and
+cookies for every visitor, whether or not they press play. For a site whose
+privacy page says "no tracking", that would make the page untrue. Self-hosting
+costs some bandwidth, but nothing is loaded until someone clicks play.
+
+*Q: Why give a `<video>` element several sources?*
+A: The browser picks the first format it can play. Listing WebM first lets
+browsers that support it download the smaller file, and MP4 second covers
+the rest, so everyone gets the loop without anyone downloading both.
