@@ -158,8 +158,8 @@ inspectable.
   ceiling needs a shared store (Vercel KV, Upstash).
 - **No mobile.** Chrome does not support extensions on Android. The natural
   mobile form is an Android share-sheet target, which does not exist yet.
-- **No history.** Explanations are not stored; the Prisma schema for that
-  exists but is not wired up.
+- **No history.** Explanations are not stored, so there is nothing to look
+  back through.
 
 ## License
 

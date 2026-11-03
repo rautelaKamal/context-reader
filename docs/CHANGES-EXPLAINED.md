@@ -752,3 +752,51 @@ separate them: removing a public endpoint and removing internal code are
 different kinds of change with different risks. Keeping them in separate
 commits means either can be reverted without the other, and the history
 explains each decision on its own terms.
+
+---
+
+## Delete the unused database schema
+
+**What changed.** `prisma/schema.prisma` is deleted, along with the two
+`.gitignore` patterns for its database files and a README sentence that said
+the schema existed.
+
+**Why.** Prisma is a tool for describing a database and generating code to
+talk to it. This schema described a `User` and an `Annotation` table for a
+reading history feature that was never built. Nothing used it: the Prisma
+packages themselves were already removed months ago, because an unused import
+of the Prisma client was failing the production build. The schema was kept then
+on the grounds that the design might be wanted later.
+
+It is cheaper to delete it now. Version control keeps it, so the design is one
+`git log` away, and a schema file in a repository is a claim that the project
+has a database. Anyone reading the code would reasonably go looking for
+where it is used.
+
+The two related edits are part of the same change. The `.gitignore` lines
+ignored database files inside a folder that no longer exists. The README
+sentence would have become untrue the moment this commit landed. Deleting a
+file and leaving behind the text that describes it just moves the confusion
+somewhere else.
+
+**What breaks without it.** Nothing. A newcomer spends ten minutes looking for
+a database that is not there.
+
+**Interview questions**
+
+*Q: The schema was a real design someone might want later. Is deleting it not
+throwing work away?*
+A: No, because git keeps it: `git log --all -- prisma/schema.prisma` finds it,
+and `git show` restores it. What deletion removes is the claim, made by its
+presence, that it is in use. If you genuinely want to preserve an unbuilt
+design, an issue or a design document is a better home than a source file,
+because those are explicitly about the future and a source file is about the
+present.
+
+*Q: Why also edit `.gitignore` and the README in a commit about deleting a
+file?*
+A: Because they are part of the same fact. The commit's purpose is "the
+project has no database schema", and two other files still said it did. A
+change should leave the repository consistent with itself, so that nobody
+reading any one file is misled. Splitting them would create a moment in the
+history where the README describes something absent.

@@ -40,9 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local db
-prisma/*.db
-prisma/*.db-journal
 
 # generated extension bundles
 public/extension.zip
