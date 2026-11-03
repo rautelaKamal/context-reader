@@ -1100,3 +1100,50 @@ A: Anything committed to a public repository is published and stays in its
 history even if deleted later. Ignoring the folder means the images can't be
 committed by accident in a later `git add .`, which is safer than relying on
 everyone remembering not to.
+
+---
+
+## Add the product film source in `video/`
+
+**What changed.** A new `video/` folder holds a short product film built with
+Remotion, a tool that turns React components into video frames. It has its
+own `package.json`, so it doesn't touch the app, the API or the extension. It
+makes a 35 second 16:9 film, a 20 second vertical cut for phones, a Hinglish
+16:9 version, a 6 second loop, five store screenshots, two promo tiles and
+thumbnails. `npm run music` fetches and prepares the soundtrack, and
+`npm run render` builds everything into `video/out/`. `CREDITS.md` lists every
+source and licence. The root `tsconfig.json` now excludes `video/`, because
+the folder is type-checked by its own config with its own dependencies.
+
+**Why.** Recreating the real pill and card in code, instead of filming the
+screen, keeps every frame sharp and lets the film be re-rendered whenever the
+copy changes. Three honesty rules are built into the code rather than left to
+memory:
+
+* Every explanation is read from `content/demo-outputs.json`, never typed in.
+* The pill and card copy the measurements in `src/extension/content.js`, and
+  only the colours change.
+* The music file is never committed. Pixabay's licence forbids redistributing
+  it on its own, so a script downloads it instead.
+
+All rendered media is gitignored, because large binary files bloat a
+repository forever and can be rebuilt from source.
+
+**What breaks without it.** Without the root `tsconfig.json` exclusion, CI's
+typecheck would try to compile the film's files without Remotion installed and
+fail on every push.
+
+**Interview questions**
+
+*Q: Why build a product video in code instead of a video editor?*
+A: Code makes it repeatable and reviewable. Changing a caption or a timing is a
+small diff that anyone can read, and the whole film re-renders the same way
+every time. In an editor the same change is manual work that leaves no record.
+It also lets the film read real data, so the explanations shown can't drift
+from what the product actually said.
+
+*Q: The repository has two `package.json` files now. Why not one?*
+A: The film needs Remotion and a different React version, which the website
+doesn't. Keeping them separate means installing the website never pulls in
+video tools, and a change to the film can't break the site's build. The cost
+is two installs, which is fine for a folder that's rarely touched.
