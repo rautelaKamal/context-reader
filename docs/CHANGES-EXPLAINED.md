@@ -800,3 +800,43 @@ project has no database schema", and two other files still said it did. A
 change should leave the repository consistent with itself, so that nobody
 reading any one file is misled. Splitting them would create a moment in the
 history where the README describes something absent.
+
+---
+
+## Delete an unused stylesheet
+
+**What changed.** `styles/Home.module.css`, 138 lines, is deleted. It was the
+only file in `styles/`, so the folder goes too.
+
+**Why.** It is a leftover from the Next.js starter template that the project
+began from. The `.module.css` suffix means it is a CSS Module: styles that only
+apply when a component imports the file and uses its class names. Nothing
+imported it. The site's real styles live in `src/app/globals.css`, which
+replaced the starter's when the homepage was redesigned.
+
+A CSS Module that nothing imports is completely inert. It is never sent to a
+browser and never applied to anything. Unlike an unused global stylesheet it
+cannot even cause an accidental style clash, so the only thing it does is sit
+in the tree looking like it matters.
+
+**What breaks without it.** Nothing. Someone editing the homepage might find a
+`.container` class here, change it, and wonder why nothing on screen moved.
+
+**Interview questions**
+
+*Q: How is a CSS Module different from a normal stylesheet, and why does that
+make this easy to prove unused?*
+A: A normal global stylesheet applies to the whole page once it is loaded, so
+proving it unused means checking that none of its selectors match anything,
+which is genuinely hard. A CSS Module is scoped: its class names are rewritten
+to be unique, and they only exist if a component imports the file and refers to
+them. So "unused" reduces to "nothing imports it", which a single search
+answers. Scoping makes code easier to delete as well as safer to write.
+
+*Q: Starter templates leave files like this behind. How do you stop them
+accumulating?*
+A: Delete template files at the moment you replace what they did, not later,
+because later never comes and the knowledge of what was template fades. A
+cheap automated guard also helps: tools such as `knip` or `ts-prune` report
+unimported files and exports, and can run in CI so new dead files show up in
+review rather than years afterwards.
