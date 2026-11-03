@@ -142,18 +142,24 @@ mark {
   display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 18px; background: var(--ink);
   box-shadow: 0 24px 70px rgba(20, 33, 61, 0.16);
 }
-.film-poster { position: relative; padding: 0; border: 0; overflow: hidden; cursor: pointer; background: var(--paper); }
-.film-poster img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.film-poster .play {
-  position: absolute; left: 50%; top: 50%; width: 88px; height: 88px; margin: -44px 0 0 -44px; border-radius: 50%;
-  background: var(--ink); box-shadow: 0 10px 30px rgba(20, 33, 61, 0.35); transition: transform 150ms ease;
+.watch {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 14px; padding: 0;
+  border: 0; background: none; cursor: pointer; color: var(--blue); font: 700 17px/1.2 var(--ui);
+  text-decoration: underline; text-underline-offset: 4px;
 }
-.film-poster .play::after {
-  content: ''; position: absolute; left: 35px; top: 27px;
-  border-style: solid; border-width: 17px 0 17px 28px; border-color: transparent transparent transparent #FFFFFF;
+.watch span { font-size: 13px; text-decoration: none; }
+.film-dialog {
+  /* margin: auto centres a modal dialog; Tailwind's reset sets every margin to 0. */
+  margin: auto; width: min(1100px, 94vw); max-width: none; padding: 0; border: 0; border-radius: 18px;
+  background: var(--ink); overflow: visible;
 }
-.film-poster:hover .play { transform: scale(1.06); }
-.film-poster:focus-visible { outline-offset: 4px; border-radius: 18px; }
+.film-dialog::backdrop { background: rgba(20, 33, 61, 0.78); }
+.film-dialog .film { border-radius: 18px; box-shadow: none; }
+.film-close {
+  position: absolute; right: 0; bottom: calc(100% + 10px); min-height: 44px; padding: 0 16px;
+  border: 0; border-radius: 12px; cursor: pointer; background: #FFFFFF; color: var(--ink); font: 700 16px/1 var(--ui);
+}
+.film-close:focus-visible { outline-color: var(--yellow); }
 
 /* How it works: a real sequence, so it is numbered. */
 .steps { display: grid; gap: 40px; margin: 0; padding: 0; list-style: none; counter-reset: step; }

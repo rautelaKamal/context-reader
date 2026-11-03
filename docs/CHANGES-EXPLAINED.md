@@ -1282,3 +1282,42 @@ an image paints sooner than a video starts. The video is added only after the
 page has loaded and the browser is idle, starting at the same frame as the
 image so the switch can't be seen. If the visitor has asked their system for
 reduced motion, the video never loads at all.
+
+---
+
+## Play the film in a pop-up instead of its own section
+
+**What changed.** The "See it in 35 seconds" section is gone. Under the hero
+button there's now a text button, "Watch the 35-second film", that opens the
+film in a modal window. The modal uses the browser's own `<dialog>` element:
+
+* While it's open, keyboard focus can't leave it.
+* Esc or the Close button shuts it, and so does a click outside the film.
+* Closing pauses the film and puts focus back on the button.
+* The film still downloads only when someone asks to watch it.
+
+The film's poster image is deleted, since nothing uses it now.
+
+**Why.** The same editorial passage and card appeared four times down the
+page: in the hero loop, the film poster, the how-it-works card and the first
+demo tab. The film poster looked like a second copy of the hero. Making the
+film something you choose to open removes the repeat and leaves the page
+shorter, while keeping the film one click from the top.
+
+**What breaks without it.** Visitors scroll past what looks like the same
+picture twice and wonder whether the page is broken or padded.
+
+**Interview questions**
+
+*Q: Why use `<dialog>` and `showModal()` instead of a styled `<div>`?*
+A: Because the browser then does the hard accessibility work. `showModal()`
+makes everything outside the dialog inert, so the keyboard and screen readers
+can't wander behind it. It also closes on Esc and is announced as a dialog.
+A `<div>` needs all of that built and tested by hand, and it's easy to miss
+one part, like stopping focus escaping to the page underneath.
+
+*Q: Why move focus back to the button after closing?*
+A: Keyboard and screen-reader users rely on focus to know where they are.
+If focus vanished to the top of the page when the modal closed, they'd lose
+their place and have to find their way back. Returning it to the button that
+opened the modal puts them exactly where they left off.

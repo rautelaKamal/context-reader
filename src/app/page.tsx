@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import icon from '../../public/icon-128.png';
 import { DemoTabs } from './components/DemoTabs';
-import { Film } from './components/Film';
+import { WatchFilm } from './components/WatchFilm';
 import { HeroLoop } from './components/HeroLoop';
 import { Install, STORE } from './components/Install';
 import { Card, Passage, Pill } from './components/Product';
@@ -79,13 +79,9 @@ export default function Home() {
             <ul className="trust" aria-label="At a glance">
               <li>Free</li><li>No sign-up</li><li>30 explanations a day</li><li>Open source</li>
             </ul>
+            <WatchFilm />
           </div>
           <HeroLoop />
-        </section>
-
-        <section className="wrap section" aria-labelledby="film">
-          <h2 id="film">See it in 35 seconds.</h2>
-          <Film />
         </section>
 
         <section className="wrap section" aria-labelledby="how">
