@@ -99,7 +99,7 @@ const Promo: React.FC<{ w: number; h: number }> = ({ w, h }) => w / h > 2 ? (
  * the page and card. Select, pill, click, answer, then a dip to paper at the seam.
  */
 const HERO_LEN = 180;
-const HeroLoop: React.FC = () => {
+const HeroLoop: React.FC<{ tall?: boolean }> = ({ tall = false }) => {
   const f = useCurrentFrame();
   const r = ED.response;
   const drag = useSp(8, 26);
@@ -112,7 +112,7 @@ const HeroLoop: React.FC = () => {
   const fade = interpolate(f, [0, 6, HERO_LEN - 8, HERO_LEN - 1], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   const overlay = open ? (
     <div style={{ opacity: Math.min(1, rise * 1.4), transform: `translateY(${(1 - rise) * 30}px)` }}>
-      <Card s={1.9} width={912} fitBlocks={2} mode={r.mode} loading={f < 92} summary={r.summary} sections={r.sections}
+      <Card s={1.9} width={tall ? 652 : 912} fitBlocks={tall ? 1 : 2} mode={r.mode} loading={f < 92} summary={r.summary} sections={r.sections}
         reveal={[...reveals, 0, 0]} left="29 left today" />
     </div>
   ) : pill > 0.01 ? (
@@ -123,7 +123,8 @@ const HeroLoop: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: C.paper }}>
       <AbsoluteFill style={{ opacity: fade }}>
-        <Page v={false} fs={34} bw={1000} bh={1040} x={40} y={40} pad={44} select={drag} tilt={0} zoom={1} origin="50% 50%"
+        <Page v={false} fs={34} bw={tall ? 696 : 1000} bh={tall ? 876 : 1040} x={tall ? 12 : 40} y={tall ? 12 : 40} pad={tall ? 22 : 44}
+          select={drag} tilt={0} zoom={1} origin="50% 50%"
           scrollToMarked scrollMix={scroll} overlay={overlay}
           cursorAt={open ? undefined : f < 40 ? drag : 1 + interpolate(f, [40, 62], [0, 1], { extrapolateRight: 'clamp' })} press={press} />
       </AbsoluteFill>
@@ -149,6 +150,8 @@ export const ExportCompositions: React.FC = () => (
   <>
     <Composition id="Loop" component={Loop} durationInFrames={LOOP_LEN} fps={FPS} width={1280} height={720} />
     <Composition id="HeroLoop" component={HeroLoop} durationInFrames={HERO_LEN} fps={FPS} width={1080} height={1080} />
+    {/* Small screens: a 4:5 crop with the same timeline, so the text and card show larger on a phone. */}
+    <Composition id="HeroLoopTall" component={HeroLoop} defaultProps={{ tall: true }} durationInFrames={HERO_LEN} fps={FPS} width={720} height={900} />
     <Composition id="OgImage" component={OgImage} durationInFrames={1} fps={FPS} width={1200} height={630} />
     <Composition id="StoreShot" component={StoreShot} defaultProps={{ n: 1 }} durationInFrames={1} fps={FPS} width={1280} height={800} />
     <Composition id="PromoSmall" component={Promo} defaultProps={{ w: 440, h: 280 }} durationInFrames={1} fps={FPS} width={440} height={280} />

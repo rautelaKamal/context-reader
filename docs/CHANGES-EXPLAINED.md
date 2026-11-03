@@ -1360,3 +1360,34 @@ same order. Here that meant moving `next-env.d.ts` aside, deleting
 `.next/types` and running `tsc`. That produced CI's exact errors, which proves
 the diagnosis, and then the fix can be checked the same way before anyone
 waits on another CI run.
+
+---
+
+## Add a 4:5 hero loop for small screens to the film source
+
+**What changed.** A new composition, `HeroLoopTall`, renders the hero loop as
+a 4:5 portrait crop. It has the same timeline as the square loop, framed
+closer, with the card showing just the summary. It renders to a 312 KB MP4
+and a 500 KB WebM.
+
+**Why.** On a phone the square loop shrinks to about 330px wide, which makes
+the card text around 9px tall. A portrait crop fills more of a phone's width
+and height, so the highlight and the answer are large enough to read without
+zooming. Keeping the same timeline means the website can start either loop
+from the same frame as its poster.
+
+**What breaks without it.** Phone visitors, most of the traffic, see a
+picture of the product too small to read.
+
+**Interview questions**
+
+*Q: Why render a separate crop instead of scaling the square video with CSS?*
+A: Scaling only shrinks or grows the whole frame, so the text stays the same
+fraction of the picture. A dedicated crop changes what's in the frame: less
+empty page and bigger type relative to the screen. It's the same idea as art
+direction for images, a different picture for a different shape.
+
+*Q: Why keep both loops on the same timeline?*
+A: The page shows a still poster first and swaps in the video at the
+poster's exact moment, so the swap is invisible. That only works if every
+version of the loop has that moment at the same time, five seconds in.
