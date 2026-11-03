@@ -906,3 +906,42 @@ attacker input. That leaves nothing on the request path, so the remainder is a
 maintenance item rather than an incident. The risk in this reasoning is that it
 has to be redone whenever the code changes, for example if the app ever
 started processing CSS that users upload.
+
+---
+
+## Delete the starter template images
+
+**What changed.** Five SVG files in `public/` are deleted: `file.svg`,
+`globe.svg`, `next.svg`, `vercel.svg` and `window.svg`.
+
+**Why.** They are the icons from the Next.js starter page, the one that says
+"Get started by editing page.tsx". This project replaced that page long ago,
+and nothing has referred to them since. Searching every tracked file for each
+name, and for any path into `public/` that could load them, found nothing.
+
+Files in `public/` have one property that makes them worth removing rather
+than ignoring: they are served. Every file in that folder is reachable at a
+URL on the live site, so `context-reader.vercel.app/vercel.svg` was a real
+address returning a Vercel logo. Unused source code just sits there, but
+unused public files are part of what the site publishes.
+
+**What breaks without it.** Nothing breaks. The site keeps serving five
+template logos that announce which starter it was built from.
+
+**Interview questions**
+
+*Q: Why is an unused file in `public/` different from an unused source file?*
+A: Because `public/` is served directly: everything in it gets a URL whether or
+not any page links to it. An unused component never reaches a browser, but an
+unused public file is downloadable by anyone who guesses the path. That makes
+`public/` worth keeping deliberately small, and it is also the folder where you
+should be most careful about what gets committed, since anything placed there
+is published.
+
+*Q: Could deleting a file in `public/` break something your search would not
+find?*
+A: Yes, an external link: another site, an old email, or a bookmark pointing
+at the URL, none of which appears in this repository. For template icons that
+risk is negligible. For anything a user might have shared, such as a
+downloadable file or an image in a social preview, you would check request logs
+for traffic to that path before deleting it, or redirect it.
