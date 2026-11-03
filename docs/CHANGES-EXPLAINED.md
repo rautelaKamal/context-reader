@@ -993,3 +993,39 @@ lets an operator decide whether to monitor Redis, and saying the install id is
 client generated stops someone treating it as a user identity. Stating limits
 openly also tends to build more trust than hiding them, since they will be
 found eventually.
+
+---
+
+## Save real API answers for the product film
+
+**What changed.** `content/demo-outputs.json` holds four answers from the live
+API: an editorial paragraph we wrote, Shakespeare's Sonnet 73, a paragraph of
+Darwin, and a passage from *Marbury v. Madison*. Each entry keeps the exact
+request, the response, the HTTP status, the time it took and when it was
+fetched. A small script, `video/scripts/generate-outputs.mjs`, made the file
+and refuses to overwrite it unless told to with `--force`.
+
+**Why.** The film shows ContextReader explaining things, so the explanations
+on screen have to be ones the product actually gave. Saving them once, with
+everything needed to reproduce the request, means the film renders from real
+output instead of text someone typed to look good. The script also checks that
+every phrase the answer quotes really appears in the passage, and records the
+result.
+
+**What breaks without it.** The film would need hand-written explanations,
+which are easy to make better than the product really is. That's a quiet way
+to mislead the people the film is meant to convince.
+
+**Interview questions**
+
+*Q: Why save the request alongside the answer, not just the answer?*
+A: Because an answer on its own can't be checked. With the exact request, the
+time and the endpoint, anyone can send the same thing again and compare. It
+turns "trust me, it said this" into something you can verify, which matters
+when the output is used publicly.
+
+*Q: Why make the script refuse to overwrite the file by default?*
+A: The saved answers are evidence, and regenerating them silently would swap
+in different, possibly better-looking ones. Requiring `--force` makes
+replacing them a deliberate act that shows up as a change in git, instead of
+something that happens by accident when someone reruns a script.

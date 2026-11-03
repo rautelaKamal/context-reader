@@ -1,0 +1,381 @@
+{
+  "note": "Real outputs from the live ContextReader API. Never edit by hand; regenerate with video/scripts/generate-outputs.mjs.",
+  "generatedAt": "2026-11-03T13:09:45.145Z",
+  "outputs": [
+    {
+      "id": "editorial",
+      "scene": "hook, struggle, aha, answer",
+      "source": "Original editorial-style paragraph written for this film.",
+      "licence": "Ours.",
+      "attempt": 1,
+      "fetchedAt": "2026-11-03T13:09:39.633Z",
+      "endpoint": "https://context-reader.vercel.app/api/explain",
+      "httpStatus": 200,
+      "latencyMs": 5682,
+      "request": {
+        "precedingParagraph": "For three summers running, the city has promised cooler streets and delivered press releases instead.",
+        "selection": "It would not be unfair to say that a plan announced in June, for a heatwave that began in April, is less a strategy than an apology written in advance.",
+        "markedParagraph": "The new heat action plan is, on paper, admirable. «It would not be unfair to say that a plan announced in June, for a heatwave that began in April, is less a strategy than an apology written in advance.» The question is whether anyone will still be reading it by next summer.",
+        "title": "A plan for last summer",
+        "url": "https://example.org/opinion/editorial/a-plan-for-last-summer",
+        "mode": "point"
+      },
+      "response": {
+        "mode": "point",
+        "depth": "fast",
+        "summary": "The writer argues that the city's belated heat action plan is a useless cover-up rather than a genuine strategy.",
+        "sections": [
+          {
+            "label": "Their position",
+            "body": "The writer believes the city's plan is completely useless because it arrives months after the heatwave started, functioning merely as a pre-emptive excuse rather than a solution, as shown by calling it \"an apology written in advance\" rather than a \"strategy\"."
+          },
+          {
+            "label": "Responding to",
+            "body": "The surrounding text states that the city has previously promised cooler streets and delivered only \"press releases instead,\" and that the new plan was \"announced in June, for a heatwave that began in April.\""
+          },
+          {
+            "label": "Tone",
+            "body": "Sardonic and dismissive, driven by the dry understatement that it \"would not be unfair to say\" and the mocking redefinition of a policy as \"an apology written in advance.\""
+          }
+        ],
+        "modes": [
+          {
+            "id": "plain",
+            "label": "Plain meaning",
+            "hint": "Say it in ordinary English"
+          },
+          {
+            "id": "point",
+            "label": "What's the point?",
+            "hint": "The writer's position, and what they're responding to"
+          },
+          {
+            "id": "lines",
+            "label": "Line by line",
+            "hint": "Walk through verse one line at a time"
+          },
+          {
+            "id": "craft",
+            "label": "How it works",
+            "hint": "Word choice, sound, line breaks, deliberate double meanings"
+          },
+          {
+            "id": "jargon",
+            "label": "The jargon",
+            "hint": "Define the technical terms in place"
+          }
+        ],
+        "quota": {
+          "remaining": 29,
+          "resetAt": 1793730600
+        }
+      },
+      "quotes": [
+        {
+          "quote": "an apology written in advance",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "strategy",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "press releases instead,",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "announced in June, for a heatwave that began in April.",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "would not be unfair to say",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "an apology written in advance.",
+          "kind": "quoted",
+          "inPassage": true
+        }
+      ]
+    },
+    {
+      "id": "poem",
+      "scene": "any hard reading",
+      "source": "William Shakespeare, Sonnet 73 (1609). Verified against Project Gutenberg #1041.",
+      "licence": "Public domain.",
+      "attempt": 1,
+      "fetchedAt": "2026-11-03T13:09:41.650Z",
+      "endpoint": "https://context-reader.vercel.app/api/explain",
+      "httpStatus": 200,
+      "latencyMs": 1998,
+      "request": {
+        "selection": "That time of year thou mayst in me behold\nWhen yellow leaves, or none, or few, do hang\nUpon those boughs which shake against the cold,\nBare ruin'd choirs, where late the sweet birds sang.",
+        "markedParagraph": "«That time of year thou mayst in me behold\nWhen yellow leaves, or none, or few, do hang\nUpon those boughs which shake against the cold,\nBare ruin'd choirs, where late the sweet birds sang.»",
+        "title": "Sonnet 73",
+        "url": "https://example.org/poems/sonnet-73",
+        "mode": "lines"
+      },
+      "response": {
+        "mode": "lines",
+        "depth": "fast",
+        "summary": "The speaker asks the person he is addressing to look at him as a representation of late autumn, moving into an image of skeletal winter trees compared to destroyed monastery ruins, conveying a sense of fading life and approaching death.",
+        "sections": [
+          {
+            "label": "That time of year thou mayst in me behold",
+            "body": "You can look at me and see a stage of life that corresponds to a specific season."
+          },
+          {
+            "label": "When yellow leaves, or none, or few, do hang",
+            "body": "That season is late autumn, represented by a few yellow leaves clinging to branches, or almost none left at all."
+          },
+          {
+            "label": "Upon those boughs which shake against the cold,",
+            "body": "Those branches tremble in the cold air, just as an aging body shivers."
+          },
+          {
+            "label": "Bare ruin'd choirs, where late the sweet birds sang.",
+            "body": "Those empty, freezing branches are compared to the roofless ruins of church choir lofts where sweet-singing birds recently performed."
+          }
+        ],
+        "modes": [
+          {
+            "id": "plain",
+            "label": "Plain meaning",
+            "hint": "Say it in ordinary English"
+          },
+          {
+            "id": "point",
+            "label": "What's the point?",
+            "hint": "The writer's position, and what they're responding to"
+          },
+          {
+            "id": "lines",
+            "label": "Line by line",
+            "hint": "Walk through verse one line at a time"
+          },
+          {
+            "id": "craft",
+            "label": "How it works",
+            "hint": "Word choice, sound, line breaks, deliberate double meanings"
+          }
+        ],
+        "quota": {
+          "remaining": 28,
+          "resetAt": 1793730600
+        }
+      },
+      "quotes": [
+        {
+          "quote": "That time of year thou mayst in me behold",
+          "kind": "heading",
+          "inPassage": true
+        },
+        {
+          "quote": "When yellow leaves, or none, or few, do hang",
+          "kind": "heading",
+          "inPassage": true
+        },
+        {
+          "quote": "Upon those boughs which shake against the cold,",
+          "kind": "heading",
+          "inPassage": true
+        },
+        {
+          "quote": "Bare ruin'd choirs, where late the sweet birds sang.",
+          "kind": "heading",
+          "inPassage": true
+        }
+      ]
+    },
+    {
+      "id": "research",
+      "scene": "any hard reading",
+      "source": "Charles Darwin, On the Origin of Species (1859), ch. IV. Verified against Project Gutenberg #1228.",
+      "licence": "Public domain.",
+      "attempt": 1,
+      "fetchedAt": "2026-11-03T13:09:43.420Z",
+      "endpoint": "https://context-reader.vercel.app/api/explain",
+      "httpStatus": 200,
+      "latencyMs": 1770,
+      "request": {
+        "selection": "It may be said that natural selection is daily and hourly scrutinising, throughout the world, every variation, even the slightest; rejecting that which is bad, preserving and adding up all that is good; silently and insensibly working, whenever and wherever opportunity offers, at the improvement of each organic being in relation to its organic and inorganic conditions of life.",
+        "markedParagraph": "«It may be said that natural selection is daily and hourly scrutinising, throughout the world, every variation, even the slightest; rejecting that which is bad, preserving and adding up all that is good; silently and insensibly working, whenever and wherever opportunity offers, at the improvement of each organic being in relation to its organic and inorganic conditions of life.»",
+        "title": "On the Origin of Species",
+        "url": "https://example.org/books/origin-of-species",
+        "mode": "jargon"
+      },
+      "response": {
+        "mode": "jargon",
+        "depth": "fast",
+        "summary": "Nature constantly and continuously tests every tiny bodily difference in living things, getting rid of unhelpful traits and accumulating helpful ones, to gradually make every creature better suited to its living and non-living environment.",
+        "sections": [
+          {
+            "label": "natural selection",
+            "body": "The mechanism where organisms with traits better suited to their environment tend to survive and reproduce more than those with less suited traits."
+          },
+          {
+            "label": "variation",
+            "body": "A difference in physical or biological traits between individuals of the same species."
+          },
+          {
+            "label": "organic being",
+            "body": "Any living organism, such as a plant or animal."
+          },
+          {
+            "label": "organic and inorganic conditions of life",
+            "body": "The living parts of an environment (like predators and prey) and the non-living parts (like climate and soil)."
+          }
+        ],
+        "modes": [
+          {
+            "id": "plain",
+            "label": "Plain meaning",
+            "hint": "Say it in ordinary English"
+          },
+          {
+            "id": "point",
+            "label": "What's the point?",
+            "hint": "The writer's position, and what they're responding to"
+          },
+          {
+            "id": "lines",
+            "label": "Line by line",
+            "hint": "Walk through verse one line at a time"
+          },
+          {
+            "id": "craft",
+            "label": "How it works",
+            "hint": "Word choice, sound, line breaks, deliberate double meanings"
+          },
+          {
+            "id": "jargon",
+            "label": "The jargon",
+            "hint": "Define the technical terms in place"
+          }
+        ],
+        "quota": {
+          "remaining": 27,
+          "resetAt": 1793730600
+        }
+      },
+      "quotes": [
+        {
+          "quote": "natural selection",
+          "kind": "heading",
+          "inPassage": true
+        },
+        {
+          "quote": "variation",
+          "kind": "heading",
+          "inPassage": true
+        },
+        {
+          "quote": "organic being",
+          "kind": "heading",
+          "inPassage": true
+        },
+        {
+          "quote": "organic and inorganic conditions of life",
+          "kind": "heading",
+          "inPassage": true
+        }
+      ]
+    },
+    {
+      "id": "legal",
+      "scene": "any hard reading",
+      "source": "Marbury v. Madison, 5 U.S. 137 (1803). Verified against Cornell LII.",
+      "licence": "Public domain: a US government work.",
+      "attempt": 1,
+      "fetchedAt": "2026-11-03T13:09:45.145Z",
+      "endpoint": "https://context-reader.vercel.app/api/explain",
+      "httpStatus": 200,
+      "latencyMs": 1724,
+      "request": {
+        "selection": "So if a law be in opposition to the constitution: if both the law and the constitution apply to a particular case, so that the court must either decide that case conformably to the law, disregarding the constitution; or conformably to the constitution, disregarding the law: the court must determine which of these conflicting rules governs the case.",
+        "markedParagraph": "«So if a law be in opposition to the constitution: if both the law and the constitution apply to a particular case, so that the court must either decide that case conformably to the law, disregarding the constitution; or conformably to the constitution, disregarding the law: the court must determine which of these conflicting rules governs the case.» This is of the very essence of judicial duty.",
+        "title": "Marbury v. Madison",
+        "url": "https://example.org/judgments/marbury-v-madison",
+        "mode": "plain"
+      },
+      "response": {
+        "mode": "plain",
+        "depth": "fast",
+        "summary": "When an ordinary law and the constitution both apply to a court case but contradict each other, judges are forced to choose which rule wins.",
+        "sections": [
+          {
+            "label": "In other words",
+            "body": "Chief Justice Marshall sets up an unavoidable clash: a situation where \"both the law and the constitution apply\" but point in opposite directions (\"in opposition to\"). Because a judge cannot obey both at once, they face a forced choice between \"disregarding the constitution\" or \"disregarding the law.\" The sentence concludes that the court has no escape and \"must determine which of these conflicting rules governs.\""
+          },
+          {
+            "label": "Why it matters here",
+            "body": "This is the foundational pivot of the entire argument for judicial review. By framing the choice as an unavoidable logical dilemma inherent to judging, Marshall establishes that deciding which rule takes priority is not optional, preparing the ground to claim that courts must uphold the constitution above ordinary laws."
+          }
+        ],
+        "modes": [
+          {
+            "id": "plain",
+            "label": "Plain meaning",
+            "hint": "Say it in ordinary English"
+          },
+          {
+            "id": "point",
+            "label": "What's the point?",
+            "hint": "The writer's position, and what they're responding to"
+          },
+          {
+            "id": "lines",
+            "label": "Line by line",
+            "hint": "Walk through verse one line at a time"
+          },
+          {
+            "id": "craft",
+            "label": "How it works",
+            "hint": "Word choice, sound, line breaks, deliberate double meanings"
+          },
+          {
+            "id": "jargon",
+            "label": "The jargon",
+            "hint": "Define the technical terms in place"
+          }
+        ],
+        "quota": {
+          "remaining": 26,
+          "resetAt": 1793730600
+        }
+      },
+      "quotes": [
+        {
+          "quote": "both the law and the constitution apply",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "in opposition to",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "disregarding the constitution",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "disregarding the law.",
+          "kind": "quoted",
+          "inPassage": true
+        },
+        {
+          "quote": "must determine which of these conflicting rules governs.",
+          "kind": "quoted",
+          "inPassage": true
+        }
+      ]
+    }
+  ]
+}
