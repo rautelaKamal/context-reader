@@ -21,12 +21,9 @@
     "qr": "python3 scripts/make-qr.py"
   },
   "dependencies": {
-    "@huggingface/inference": "^3.7.1",
     "next": "^15.2.6",
-    "pdf-lib": "^1.17.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-pdf": "^9.2.1"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

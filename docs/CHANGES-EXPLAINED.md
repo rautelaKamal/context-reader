@@ -641,3 +641,71 @@ untrue, find out later, and are right to be angry. Trust is the main asset of a
 tool that reads over your shoulder, and it is lost in exactly one event. If the
 disclosure costs too many users, the honest fix is to change the thing being
 disclosed by moving to a paid tier, not to describe it more gently.
+
+---
+
+## Remove three dependencies nothing uses
+
+**What changed.** `@huggingface/inference`, `pdf-lib` and `react-pdf` are gone
+from `package.json` and the lockfile.
+
+**Why they were there.** Each is left over from an earlier version of the
+project. The Hugging Face SDK was the original model client before the
+provider was rewritten to use plain `fetch`. The two PDF libraries belonged to
+a PDF reading feature that was never built.
+
+**How we know they are unused.** "I could not find it" is not evidence, so the
+search was deliberately broad. For each package:
+
+* static `import ... from` and `require(...)`: none
+* dynamic `import(...)`: none
+* config files (`next.config.js`, `eslint.config.mjs`, `postcss.config.mjs`,
+  `tsconfig.json`, `vercel.json`): none
+* anything in `scripts/`: none
+* any other installed package declaring it as a dependency: none
+
+Every package appeared in exactly one tracked file, on its own line in
+`package.json`. After removal the tests, typecheck and production build all
+still pass, which is the check that actually settles it.
+
+**What it cost to keep them.** More than you would guess from three lines.
+
+| | Before | After |
+|---|---|---|
+| `node_modules` | 484 MB | 395 MB |
+| installed packages | 501 | 455 |
+| `package-lock.json` | 250.7 KB | 230.9 KB |
+| audit findings | 17 | 16 |
+
+One high severity vulnerability disappeared with them, in a package called
+`tar-fs`. Nothing in this project ever called `tar-fs`. It arrived through a
+chain: `react-pdf` needs `pdfjs-dist`, which can use `canvas`, which installs
+through `prebuild-install`, which uses `tar-fs`. That is the real cost of an
+unused dependency: you inherit everything it depends on, including its
+security problems, for a feature you are not using.
+
+**What breaks without it.** Nothing. Every `npm install`, every CI run on two
+Node versions and every Vercel build was downloading and unpacking 89 MB of
+code that never ran.
+
+**Interview questions**
+
+*Q: How do you prove a dependency is unused, rather than just failing to find
+it?*
+A: Search every way code can reach a package, not just the obvious one: static
+imports, `require`, dynamic `import()` with a string, configuration files that
+load plugins by name, build and script files, and whether another package
+needs it. Then make the decisive test: remove it and run the full build and
+test suite. Searching tells you where to look; the build is what proves it.
+There are still blind spots worth naming, such as a package loaded by a name
+built at runtime, which is why removal belongs in its own commit that is easy
+to revert.
+
+*Q: The vulnerable package was four levels deep and never called. Was it
+actually a risk?*
+A: Possibly less than the label suggests, because many vulnerabilities only
+matter when the vulnerable function is reached. But "it is probably not
+exploitable here" is a judgement you then have to make, document and revisit
+for every advisory, forever. Removing the dependency replaces an ongoing
+judgement with a fact. The cheapest vulnerability to manage is the one in
+code you do not install.
