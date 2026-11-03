@@ -709,3 +709,46 @@ exploitable here" is a judgement you then have to make, document and revisit
 for every advisory, forever. Removing the dependency replaces an ongoing
 judgement with a fact. The cheapest vulnerability to manage is the one in
 code you do not install.
+
+---
+
+## Delete the translation function
+
+**What changed.** `translate()` and its result type `TranslationResult` are
+removed from `src/lib/ai.ts`, which drops from 93 lines to 47.
+
+**Why.** Phase A2 removed the only route that called it, and the extension
+branch that called that route. It was left in place then and reported rather
+than deleted, so this commit is the follow-through. Nothing referenced it: the
+only mention anywhere in the repository was the note in this document saying it
+was dead.
+
+The check for "anything only it used" mattered more than the function itself.
+Its prompt was written inline inside the function rather than in
+`prompts.ts`, and its result type was declared next to it, so both went with
+it. What it shared with `explain()`, the provider and the `PassageContext`
+type, stays, because `explain()` still needs them. Deleting a function is easy;
+the skill is deleting exactly the code that existed only for it.
+
+**What breaks without it.** Nothing. You keep 46 lines that compile, get read,
+and suggest the product translates when it does not.
+
+**Interview questions**
+
+*Q: When you delete a function, how do you decide what else to delete with
+it?*
+A: Walk its dependencies and ask, for each one, "does anything else use this?"
+Things only it used, here a type and an inline prompt, go with it, because
+they are now dead too and would otherwise be found and wondered about later.
+Things it shares with live code stay. The mistake in one direction is leaving
+orphans; in the other it is removing something shared and breaking a caller,
+which is why the build and tests run afterwards.
+
+*Q: The function was already known to be dead. Why was it not deleted in the
+same change that killed its caller?*
+A: Because "do not delete without listing it first" was the rule for that
+phase, and the owner should decide. There is also a practical reason to
+separate them: removing a public endpoint and removing internal code are
+different kinds of change with different risks. Keeping them in separate
+commits means either can be reverted without the other, and the history
+explains each decision on its own terms.
