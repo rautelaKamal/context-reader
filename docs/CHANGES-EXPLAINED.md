@@ -1147,3 +1147,48 @@ A: The film needs Remotion and a different React version, which the website
 doesn't. Keeping them separate means installing the website never pulls in
 video tools, and a change to the film can't break the site's build. The cost
 is two installs, which is fine for a folder that's rarely touched.
+
+---
+
+## Add store, hero and share-image compositions to the film source
+
+**What changed.** The film source in `video/` gained four new outputs:
+
+* **`StoreShot`:** five store screenshots drawn directly at 1280x800. Each
+  has one plain caption and the real page, pill and card filling the frame.
+* **`HeroLoop`:** a six second loop for the website: select, the Explain
+  pill, the card opening. It has no captions, so it can sit beside the
+  page's own headline.
+* **`OgImage`:** the 1200x630 picture shown when the site is shared on
+  social media, in the film's end-card style.
+* **Promo tiles:** the quote fragment is replaced with a plain benefit line.
+
+To build these, the page component can now scroll partway towards the
+selected paragraph, and the card can stop cleanly between two sections
+(`fitBlocks`) instead of cutting a sentence in half.
+
+**Why.** The first store screenshots were frames of the film, so they carried
+the film's headlines and its pacing: one was caught mid-scroll, others had
+empty space where a montage caption had been. A screenshot has a different
+job, which is to show one thing clearly at the size the store displays it,
+so it gets its own layout. The website hero has the same problem with the
+film's captions, which would sit next to the page's headline.
+
+**What breaks without it.** The store listing shows half-scrolled cards and
+leftover captions. The website's hero shows two competing headlines.
+
+**Interview questions**
+
+*Q: Why not just crop frames from the finished film for the screenshots?*
+A: Because a film frame is designed to be seen for a moment while moving, at
+full screen. A screenshot is studied while still, at about half size, next to
+competitors. Things that work in motion, like a card mid-scroll or a caption
+that builds up over a montage, look like mistakes in a still. Reusing the same
+components keeps them accurate to the product; giving them their own layout
+makes them work as stills.
+
+*Q: What does "stop between two sections" buy you over a fixed height?*
+A: A fixed height cuts wherever it lands, often mid-sentence, which looks
+broken. Measuring where each section starts and clipping exactly there shows
+whole blocks, the way the real card looks when you've scrolled to a section
+boundary. It's honest to the product and reads cleanly.

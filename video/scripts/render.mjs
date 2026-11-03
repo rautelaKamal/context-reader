@@ -13,8 +13,8 @@ for (const [comp, file] of [['Film', 'film-16x9'], ['Vertical', 'film-9x16'], ['
 run('render', R, 'Loop', 'out/exports/loop-6s.webm', '--codec=vp9', '--crf=30');
 run('render', R, 'Loop', 'out/exports/loop-6s.gif', '--codec=gif', '--every-nth-frame=2', '--scale=0.5', '--number-of-gif-loops=0');
 
-for (const [name, frame] of [['1-select', 252], ['2-meaning', 362], ['3-poem', 573], ['4-research', 639], ['5-legal', 705]])
-  run('still', R, 'Shot', `out/exports/screenshot-${name}-1280x800.png`, `--props={"frame":${frame}}`);
+['1-select', '2-meaning', '3-poem', '4-jargon', '5-legal'].forEach((name, i) =>
+  run('still', R, 'StoreShot', `out/exports/screenshot-${name}-1280x800.png`, `--props={"n":${i + 1}}`));
 run('still', R, 'PromoMarquee', 'out/exports/promo-marquee-1400x560.png');
 run('still', R, 'PromoSmall', 'out/exports/promo-small-440x280.png');
 run('still', R, 'Film', 'out/exports/thumb-16x9-1280x720.png', '--frame=362', '--scale=0.6667');

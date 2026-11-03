@@ -131,7 +131,9 @@ export const Card: React.FC<{
   maxH?: number;
   /** Which block to scroll to the top of the body: 0 summary, 1 first section, fractional while moving. */
   scrollTo?: number;
-}> = ({ s, mode, verse, loading, summary, sections = [], reveal = [], pulses = [], pulse = 0, left = 'ContextReader', width, maxH, scrollTo = 0 }) => {
+  /** Show exactly this many whole blocks in the body, the way a scroll position between sections would. */
+  fitBlocks?: number;
+}> = ({ s, mode, verse, loading, summary, sections = [], reveal = [], pulses = [], pulse = 0, left = 'ContextReader', width, maxH, scrollTo = 0, fitBlocks }) => {
   const chips = CHIPS.filter(([id]) => !(verse && id === 'jargon'));
   const blocks = useRef<(HTMLElement | null)[]>([]);
   const view = useRef<HTMLDivElement>(null);
@@ -165,7 +167,10 @@ export const Card: React.FC<{
           }}>{label}</div>
         ))}
       </div>
-      <div ref={view} style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+      <div ref={view} style={{
+        flex: fitBlocks ? 'none' : 1, minHeight: 0, overflow: 'hidden', position: 'relative',
+        height: fitBlocks && tops.length > fitBlocks ? tops[fitBlocks] : undefined,
+      }}>
       <div ref={inner} style={{ padding: `${12 * s}px ${14 * s}px ${4 * s}px`, transform: `translateY(${-offset}px)`, position: 'relative' }}>
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 * s, padding: `${4 * s}px 0 ${12 * s}px`, color: C.inkSoft, fontSize: 14 * s }}>

@@ -46,13 +46,15 @@ const offsetIn = (el: HTMLElement | null, root: HTMLElement | null): Pt => {
  * as in the product. The cursor lives in the page too, placed from measured text
  * positions: `cursorAt` 0 is the selection start, 1 its end, 2 the pill.
  */
-const Page: React.FC<{
+export const Page: React.FC<{
   v: boolean; fs: number; bw: number; bh: number; x?: number; y: number;
   select: number; reread?: number; pale?: boolean; pulse?: number;
   overlay?: React.ReactNode; tilt: number; zoom: number; origin: string;
-  scrollToMarked?: boolean; cursorAt?: number; press?: number;
-}> = ({ v, fs, bw, bh, x, y, select, reread = -1, pale, pulse, overlay, tilt, zoom, origin, scrollToMarked, cursorAt, press = 0 }) => {
-  const W = v ? 1080 : 1920, pad = PAD(v);
+  scrollToMarked?: boolean; cursorAt?: number; press?: number; pad?: number; scrollExtra?: number;
+  /** 0 to 1: how far the page has scrolled towards the marked paragraph. */
+  scrollMix?: number;
+}> = ({ v, fs, bw, bh, x, y, select, reread = -1, pale, pulse, overlay, tilt, zoom, origin, scrollToMarked, cursorAt, press = 0, pad: padIn, scrollExtra = 0, scrollMix = 1 }) => {
+  const W = v ? 1080 : 1920, pad = padIn ?? PAD(v);
   const root = useRef<HTMLDivElement>(null), a = useRef<HTMLSpanElement>(null), b = useRef<HTMLSpanElement>(null);
   const marked = useRef<HTMLDivElement>(null), anchor = useRef<HTMLDivElement>(null);
   const [m, setM] = useState<{ a: Pt; b: Pt; pill: Pt; top: number } | null>(null);
@@ -60,7 +62,7 @@ const Page: React.FC<{
     const next = { a: offsetIn(a.current, root.current), b: offsetIn(b.current, root.current), pill: offsetIn(anchor.current, root.current), top: offsetIn(marked.current, root.current).y };
     if (JSON.stringify(next) !== JSON.stringify(m)) setM(next);
   });
-  const scroll = scrollToMarked && m ? m.top - pad : 0;
+  const scroll = scrollToMarked && m ? (m.top - pad + scrollExtra) * scrollMix : 0;
   let cur: Pt | null = null;
   if (cursorAt !== undefined && m) {
     const pill = { x: m.pill.x + fs * 1.1, y: m.pill.y + fs * 0.75 };
@@ -76,7 +78,7 @@ const Page: React.FC<{
           {/* A scrolled page clips at the browser edge, like a real tab. */}
           <div style={{ height: '100%', overflow: scrollToMarked ? 'hidden' : 'visible' }}>
             <div ref={root} style={{ position: 'relative', padding: `${pad}px`, transform: `translateY(${-scroll}px)` }}>
-              <Serif size={fs} style={{ color: C.inkSoft, marginBottom: fs * 0.9, opacity: scrollToMarked ? 0 : 1 }}>{ED.request.precedingParagraph}</Serif>
+              <Serif size={fs} style={{ color: C.inkSoft, marginBottom: fs * 0.9, opacity: scrollToMarked ? 1 - scrollMix : 1 }}>{ED.request.precedingParagraph}</Serif>
               <Serif size={fs}>
                 <div ref={marked} style={{ position: 'relative' }}>
                   {/* Rereading: a soft band sweeps across the paragraph. */}
@@ -199,7 +201,7 @@ export const Answer: React.FC<Props & { sectionsShown?: number }> = ({ v, lang, 
 };
 
 /* ---------- 5. any hard reading (16:9 only) ---------- */
-const ANY = [
+export const ANY = [
   { id: 'poem', verse: true, source: "Bare ruin’d choirs, where late the sweet birds sang.", label: "Bare ruin'd choirs, where late the sweet birds sang.", kind: 'Shakespeare, Sonnet 73' },
   { id: 'research', verse: false, source: 'It may be said that natural selection is daily and hourly scrutinising, throughout the world, every variation…', label: 'natural selection', kind: 'Darwin, On the Origin of Species' },
   { id: 'legal', verse: false, source: '…the court must determine which of these conflicting rules governs the case.', label: null, kind: 'Marbury v. Madison, 1803' },

@@ -8,7 +8,7 @@ This folder holds the source for a short product film, built with [Remotion](htt
 | `Vertical` | 1080x1920 | 20.6 s | Text kept out of the top 15% and bottom 20% |
 | `FilmHinglish` | 1920x1080 | 35.5 s | Only the on-screen lines change; the explanations stay in English |
 | `Loop` | 1280x720 | 6 s | From selection to answer, silent |
-| `Shot` | 1280x800 | still | Store screenshot from any film frame |
+| `StoreShot` | 1280x800 | still | Store screenshots 1 to 5, each with its own caption |
 | `PromoSmall`, `PromoMarquee` | 440x280, 1400x560 | still | Store promo tiles |
 
 ## Re-render
