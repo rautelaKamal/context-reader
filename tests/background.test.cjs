@@ -10,9 +10,10 @@ const { join } = require('node:path');
 
 const SOURCE = readFileSync(join(__dirname, '..', 'src', 'extension', 'background.js'), 'utf8');
 
-function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } }, breakStorage = false, shortcut = '⇧⌘E' } = {}) {
+function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } }, breakStorage = false, shortcut = '⇧⌘E', streamLines = null } = {}) {
   let listener = null;
   let onCommand = null;
+  let onConnect = null;
   const calls = [];
   const tabMessages = [];
 
@@ -27,8 +28,14 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
     // wrong answer rather than a crash.
     URL: globalThis.URL,
     JSON: globalThis.JSON,
+    TextDecoder: globalThis.TextDecoder,
+    AbortController: globalThis.AbortController,
     fetch: async (url, init) => {
       calls.push({ url, body: JSON.parse(init.body), headers: init.headers });
+      if (streamLines) {
+        const chunks = streamLines.map((l) => new TextEncoder().encode(typeof l === 'string' ? l : `${JSON.stringify(l)}\n`));
+        return { ok: true, status: 200, body: { getReader: () => ({ read: async () => (chunks.length ? { value: chunks.shift(), done: false } : { done: true }) }) } };
+      }
       return {
         ok: respondWith.ok,
         status: respondWith.status ?? 200,
@@ -39,6 +46,7 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
     chrome: {
       runtime: {
         onMessage: { addListener: (fn) => { listener = fn; } },
+        onConnect: { addListener: (fn) => { onConnect = fn; } },
         // The worker registers an onInstalled handler at load time to
         // re-inject into already open tabs. These tests only exercise the
         // quota path, so the handler is accepted and never invoked.
@@ -71,7 +79,21 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
   const send = (message) =>
     new Promise((resolve) => { listener(message, null, resolve); });
 
-  return { send, store, calls, tabMessages, command: (name, tab) => onCommand(name, tab) };
+  /** Opens a fake port the way the card does, posts a request, and collects what comes back. */
+  const connect = (message) => new Promise((resolve) => {
+    const received = [];
+    let onPortMessage = null;
+    const port = {
+      name: 'explain',
+      postMessage: (e) => { received.push(e); if (e.type === 'done' || e.type === 'error') resolve(received); },
+      onMessage: { addListener: (fn) => { onPortMessage = fn; } },
+      onDisconnect: { addListener: () => {} },
+    };
+    onConnect(port);
+    onPortMessage(message);
+  });
+
+  return { send, store, calls, tabMessages, connect, command: (name, tab) => onCommand(name, tab) };
 }
 
 const explain = (depth) => ({
@@ -244,5 +266,57 @@ test('keyboard shortcut', async (t) => {
   await t.test('an unassigned shortcut comes back empty, so the pill hides it', async () => {
     const { send } = bootWorker({ shortcut: '' });
     assert.equal((await send({ type: 'shortcut' })).shortcut, '');
+  });
+});
+
+test('streaming over a port', async (t) => {
+  const lines = [
+    { type: 'start', mode: 'plain', depth: 'fast', modes: [] },
+    { type: 'summary', text: 'The gist' },
+    { type: 'section', label: 'In other words' },
+    { type: 'delta', text: 'More.' },
+    { type: 'done', result: { summary: 'The gist', sections: [{ label: 'In other words', body: 'More.' }] } },
+  ];
+  const request = (id) => ({ type: 'explain', requestId: id, payload: { selection: 'a passage', url: 'https://x.test/a?token=1' } });
+
+  await t.test('events arrive in order, and the start carries the allowance', async () => {
+    const { connect } = bootWorker({ streamLines: lines });
+    const got = JSON.parse(JSON.stringify(await connect(request('req-0001'))));
+    assert.deepEqual(got.map((e) => e.type), ['start', 'summary', 'section', 'delta', 'done']);
+    assert.equal(got[0].remaining, 29);
+  });
+
+  await t.test('the request asks for a stream, carries its id, and still strips the address', async () => {
+    const { connect, calls } = bootWorker({ streamLines: lines });
+    await connect(request('req-0002'));
+    assert.equal(calls[0].body.stream, true);
+    assert.equal(calls[0].headers['X-Request-Id'], 'req-0002');
+    assert.equal(calls[0].body.url, 'https://x.test/a');
+  });
+
+  await t.test('an event split across network chunks is still read whole', async () => {
+    const whole = lines.map((l) => `${JSON.stringify(l)}\n`).join('');
+    const { connect } = bootWorker({ streamLines: [whole.slice(0, 37), whole.slice(37, 90), whole.slice(90)] });
+    const got = await connect(request('req-0003'));
+    assert.equal(got.at(-1).type, 'done');
+  });
+
+  await t.test('a stream that drops after words arrived is reported as cut off', async () => {
+    const { connect } = bootWorker({ streamLines: lines.slice(0, 2) });
+    const got = await connect(request('req-0004'));
+    assert.equal(got.at(-1).type, 'error');
+    assert.equal(got.at(-1).partial, true);
+    assert.match(got.at(-1).message, /cut off/);
+  });
+
+  await t.test('retrying the same request id is charged once', async () => {
+    const store = {};
+    const first = bootWorker({ store, streamLines: lines });
+    await first.connect(request('req-0005'));
+    const second = bootWorker({ store, streamLines: lines });
+    const got = await second.connect(request('req-0005'));
+    assert.equal(got[0].remaining, 29, 'still one used');
+    const third = bootWorker({ store, streamLines: lines });
+    assert.equal((await third.connect(request('req-0006')))[0].remaining, 28, 'a new id is charged');
   });
 });

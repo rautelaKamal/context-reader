@@ -1810,3 +1810,59 @@ first version, silently swapping in a different one would be confusing. So
 the system is honest instead: it keeps what arrived, says it was cut off,
 and offers a free retry.
 
+---
+
+## Stream answers into the card over a port
+
+**What changed.** The card now opens a long-lived connection to the service
+worker, `chrome.runtime.connect({ name: 'explain' })`, and sends one request.
+The worker reads the server's event stream and posts each event back as it
+arrives. The card shows the skeleton until the first words, then fills the
+summary in word by word, then each section. When a section is complete, its
+verified quotes are highlighted. When `done` arrives, the card redraws once
+from the final answer, in the same task, so nothing flickers. Closing the
+card disconnects the port, and the worker aborts the download.
+
+The card never jumps. Its position is decided once, for the tallest it can
+get (about 70% of the window). Below the selection, it simply grows
+downward. Above, the full height is reserved up front, because a card that
+grew upward would push the words already on screen. While text is arriving,
+the visible area doesn't snap to section boundaries; it does that once, at
+the end. On a real article, the card's top, the summary and the first heading
+moved zero times during streaming.
+
+If the answer is cut off, what arrived stays on screen with "Answer cut off.
+Try again." The retry reuses the request id, so it's free.
+
+**The MV3 service worker and port lifetime.** An extension's background
+script is a service worker, and Chrome stops one after 30 seconds without
+activity. In Chrome's words, "receiving an event or calling an extension API
+resets this timer", and "sending a message with long-lived messaging keeps
+the service worker alive", though "opening a port no longer resets the
+timers" ([The extension service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle)).
+So an open port alone isn't enough; messages have to flow. While an answer
+streams, every event posted to the port counts. Before the first word, a deep
+read can think for longer than 30 seconds, which is why the server sends a
+`wait` event every ten seconds and the worker forwards it.
+
+**What breaks without it.** Streaming would only reach the worker, not the
+card. And without the keep-alive, Chrome could stop the worker in the middle
+of a slow deep answer, leaving the card waiting for words that never come.
+
+**Interview questions**
+
+*Q: Why a port instead of `sendMessage` for this?*
+A: `sendMessage` gets exactly one reply, and an answer that streams is many
+messages over several seconds. A port is a two-way channel that stays open
+until either side disconnects. That also gives cancellation for free: closing
+the card disconnects the port, and the worker aborts the request instead of
+downloading an answer nobody will see.
+
+*Q: How do you make text appear word by word without the layout jumping?*
+A: Decide where the card goes once, using the biggest size it can reach, so
+growth never forces it to move. Grow only downward, and reserve the full
+height when the card has to sit above the selection. Append text instead of
+re-rendering. When the final answer arrives, swap it in within a single task,
+so the browser never paints the halfway state. Then measure it: sample the
+positions of what's already on screen while text streams, and check that
+none of them changes.

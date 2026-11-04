@@ -110,7 +110,7 @@
     .item-name { font-weight: 600; font-size: 14px; }
     .item-hint { font-size: 12.5px; color: var(--soft); }
 
-    .body { padding: 14px 16px 4px; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y proximity; }
+    .body { flex: 1 1 auto; min-height: 0; padding: 14px 16px 4px; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y proximity; }
     .summary { margin: 0 0 12px; font-size: 16px; line-height: 1.5; white-space: pre-wrap; }
 
     /* Sections: the first open, the rest a tap away. */
@@ -158,6 +158,7 @@
 
     .error-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
     .error-text { margin: 0 0 12px; color: var(--soft); }
+    .cutoff { border-top: 1px solid var(--rule); padding-top: 12px; }
     .retry {
       margin-bottom: 14px; padding: 7px 14px; border: 1px solid var(--rule); border-radius: 999px;
       background: var(--chip); font-weight: 600; cursor: pointer;
@@ -681,7 +682,8 @@
       body.append(titleEl, el('p', 'error-text', message));
       if (retryable) {
         const retry = el('button', 'retry', 'Try again');
-        retry.addEventListener('click', () => this.request());
+        // Same request id: a retry after a failure isn't charged again.
+        retry.addEventListener('click', () => this.request({ retry: true }));
         body.appendChild(retry);
       }
       // No lens chosen yet (the first request failed): drop the loading placeholder.
@@ -691,60 +693,167 @@
       this.positionCard();
     }
 
-    request() {
+    /**
+     * Ask for an explanation over a port and render it as it streams in. The
+     * skeleton stays until the first words arrive. `retry` reuses the last
+     * request id, so trying again after a cut-off answer isn't charged twice.
+     */
+    request({ retry = false } = {}) {
       if (!this.context) return;
+      this.port?.disconnect();
+      this.port = null;
       this.setLoading();
 
       const payload = { ...this.context };
       if (this.mode) payload.mode = this.mode;
       if (this.depth === 'deep') payload.depth = 'deep';
-
-      // A service worker can be terminated mid-request, and then the callback
-      // below is simply never invoked. Without this the card loads forever.
-      const token = Symbol('request');
-      this.pending = token;
-      const settle = (fn) => {
-        if (this.pending !== token) return;
-        this.pending = null;
-        clearTimeout(watchdog);
-        fn();
-      };
-      const watchdog = setTimeout(
-        () => settle(() => this.setError('No answer came back. Try again.')),
-        this.depth === 'deep' ? 150000 : 45000,
-      );
+      if (!retry || !this.requestId) this.requestId = crypto.randomUUID();
 
       // A content script outlives the extension that injected it. Reload,
       // update or re-enable ContextReader and every chrome.* API in an
-      // already-open tab is torn down, so this call would throw and the card
-      // would load forever. The page has to be refreshed to get a live script.
+      // already-open tab is torn down, so this would throw and the card would
+      // load forever. The page has to be refreshed to get a live script.
       if (!chrome.runtime?.id) {
-        settle(() => this.setError(ORPHANED, { retryable: false, title: 'Refresh this page' }));
+        this.setError(ORPHANED, { retryable: false, title: 'Refresh this page' });
         return;
       }
 
+      let port;
       try {
-        chrome.runtime.sendMessage({ type: 'explain', payload }, (response) => {
-          settle(() => {
-            if (chrome.runtime.lastError) {
-              this.setError(ORPHANED, { retryable: false, title: 'Refresh this page' });
-              return;
-            }
-            if (!response?.success) {
-              this.setError(response?.error || 'Something went wrong on our side. Try again.', {
-                retryable: !response?.overLimit,
-                title: response?.overLimit ? "That's today's explanations" : "Couldn't get an explanation.",
-              });
-              return;
-            }
-            if (typeof response.remaining === 'number') this.remaining = response.remaining;
-            this.renderResult(response.data);
-          });
-        });
+        port = chrome.runtime.connect({ name: 'explain' });
       } catch {
-        // The context can die between the check above and the call itself.
-        settle(() => this.setError(ORPHANED, { retryable: false, title: 'Refresh this page' }));
+        this.setError(ORPHANED, { retryable: false, title: 'Refresh this page' });
+        return;
       }
+      this.port = port;
+      this.stream = null;
+
+      // The worker can be stopped mid-answer, and then nothing more arrives.
+      let watchdog;
+      const arm = () => {
+        clearTimeout(watchdog);
+        watchdog = setTimeout(() => this.onStreamEvent(port, { type: 'error', partial: Boolean(this.stream?.words), message: this.stream?.words ? 'Answer cut off. Try again.' : 'No answer came back. Try again.' }), this.depth === 'deep' ? 150000 : 45000);
+      };
+      arm();
+      port.onMessage.addListener((event) => {
+        if (this.port !== port) return;
+        arm();
+        this.onStreamEvent(port, event);
+        if (event.type === 'done' || event.type === 'error') clearTimeout(watchdog);
+      });
+      port.onDisconnect.addListener(() => {
+        clearTimeout(watchdog);
+        if (this.port !== port) return;
+        this.port = null;
+        // Disconnected before finishing: the worker went away.
+        if (this.card && !this.stream?.finished) {
+          this.onStreamEvent(port, { type: 'error', partial: Boolean(this.stream?.words), message: this.stream?.words ? 'Answer cut off. Try again.' : ORPHANED });
+        }
+      });
+      port.postMessage({ type: 'explain', payload, requestId: this.requestId });
+    }
+
+    onStreamEvent(port, event) {
+      if (!this.card || this.port !== port) return;
+      const st = this.stream ??= { words: false, finished: false, summary: null, summaryText: '', sections: [], current: null };
+      switch (event.type) {
+        case 'start': {
+          if (typeof event.remaining === 'number') this.remaining = event.remaining;
+          if (Array.isArray(event.modes) && event.modes.length) {
+            this.modes = event.modes.map((m) => ({ id: m.id, label: m.label, hint: m.hint }));
+          }
+          if (event.mode && event.mode !== this.mode) {
+            this.mode = event.mode;
+            this.renderLens();
+          }
+          break;
+        }
+        case 'summary': {
+          if (!st.summary) this.beginStream(st);
+          st.summaryText += event.text;
+          st.summary.append(event.text);
+          break;
+        }
+        case 'section': {
+          if (!st.summary) this.beginStream(st);
+          this.finishPart(st);
+          const part = this.makeSection(st.sections.length, event.label);
+          part.raw = '';
+          st.sections.push(part);
+          st.current = part;
+          this.card.body.appendChild(part.wrap);
+          break;
+        }
+        case 'delta': {
+          if (!st.current) this.onStreamEvent(port, { type: 'section', label: '' });
+          st.current.raw += event.text;
+          st.current.text.append(event.text);
+          break;
+        }
+        case 'done': {
+          st.finished = true;
+          this.port = null;
+          port.disconnect();
+          // The full reply, parsed properly on the server, is what the card keeps.
+          this.renderResult(event.result, { keepPlace: true });
+          break;
+        }
+        case 'error': {
+          st.finished = true;
+          this.port = null;
+          try { port.disconnect(); } catch { /* already gone */ }
+          if (event.partial && st.words) this.showCutOff(st, event.message);
+          else {
+            this.setError(event.message || 'Something went wrong on our side. Try again.', {
+              retryable: !event.overLimit,
+              title: event.overLimit ? "That's today's explanations" : "Couldn't get an explanation.",
+            });
+          }
+          break;
+        }
+        default:
+      }
+      if (event.type === 'summary' || event.type === 'section' || event.type === 'delta') this.fitBody({ streaming: true });
+    }
+
+    /** First words: the skeleton goes, and the summary starts filling in its place. */
+    beginStream(st) {
+      st.words = true;
+      const { body } = this.card;
+      // Hold the skeleton's height until the text is taller, so nothing jumps.
+      body.style.minHeight = `${body.offsetHeight}px`;
+      body.textContent = '';
+      body.removeAttribute('aria-busy');
+      st.summary = el('p', 'summary');
+      body.appendChild(st.summary);
+    }
+
+    /** A part is complete: redraw its text with verified quotes marked. */
+    finishPart(st) {
+      if (st.current) {
+        st.current.text.textContent = '';
+        this.fillText(st.current.text, st.current.raw);
+        st.current = null;
+      } else if (st.summary && !st.summaryDone) {
+        st.summary.textContent = '';
+        this.fillText(st.summary, st.summaryText);
+        st.summaryDone = true;
+      }
+    }
+
+    /** Keep what arrived, say plainly it was cut off, and offer a free retry. */
+    showCutOff(st, message) {
+      this.finishPart(st);
+      const note = el('div', 'cutoff');
+      note.append(el('p', 'error-text', message || 'Answer cut off. Try again.'));
+      const retry = el('button', 'retry', 'Try again');
+      retry.addEventListener('click', () => this.request({ retry: true }));
+      note.appendChild(retry);
+      this.card.body.appendChild(note);
+      this.card.body.style.minHeight = '';
+      this.setFoot();
+      this.card.deeper.disabled = false;
+      this.fitBody();
     }
 
     /** Text with verified quotes (3+ words, word for word in what was sent) marked; nothing else. */
@@ -759,7 +868,32 @@
       node.append(text.slice(at));
     }
 
-    renderResult(data) {
+    /** One section: a heading that opens and closes it, and its text. Open state is kept per lens. */
+    makeSection(i, label) {
+      const open = this.openSections.get(this.mode) ?? new Set([0]);
+      this.openSections.set(this.mode, open);
+      const wrap = el('div', 'section');
+      const id = `cr-sec-${i}`;
+      const headBtn = el('button', 'sec-head');
+      headBtn.setAttribute('aria-expanded', String(open.has(i)));
+      headBtn.setAttribute('aria-controls', id);
+      headBtn.append(el('span', this.mode === 'lines' ? 'label line' : 'label', label), chevron());
+      const text = el('p', 'sec-text');
+      text.id = id;
+      text.hidden = !open.has(i);
+      headBtn.addEventListener('click', () => {
+        const now = !open.has(i);
+        if (now) open.add(i); else open.delete(i);
+        headBtn.setAttribute('aria-expanded', String(now));
+        text.hidden = !now;
+        this.fitBody();
+        if (now) wrap.scrollIntoView({ block: 'nearest' });
+      });
+      wrap.append(headBtn, text);
+      return { wrap, text };
+    }
+
+    renderResult(data, { keepPlace = false } = {}) {
       if (!this.card) return;
 
       if (Array.isArray(data.modes) && data.modes.length) {
@@ -775,6 +909,9 @@
       this.setFoot();
 
       const { body } = this.card;
+      // Replacing the streamed text with the final version happens in one
+      // task, so nothing paints in between; keep the reader's scroll position.
+      const scrolled = body.scrollTop;
       body.textContent = '';
       body.removeAttribute('aria-busy');
 
@@ -785,32 +922,15 @@
         body.appendChild(summary);
       }
 
-      const open = this.openSections.get(this.mode) ?? new Set([0]);
-      this.openSections.set(this.mode, open);
       (data.sections ?? []).forEach((section, i) => {
-        const wrap = el('div', 'section');
-        const id = `cr-sec-${i}`;
-        const headBtn = el('button', 'sec-head');
-        headBtn.setAttribute('aria-expanded', String(open.has(i)));
-        headBtn.setAttribute('aria-controls', id);
-        headBtn.append(el('span', this.mode === 'lines' ? 'label line' : 'label', section.label), chevron());
-        const text = el('p', 'sec-text');
-        text.id = id;
-        text.hidden = !open.has(i);
-        this.fillText(text, section.body);
-        headBtn.addEventListener('click', () => {
-          const now = !open.has(i);
-          if (now) open.add(i); else open.delete(i);
-          headBtn.setAttribute('aria-expanded', String(now));
-          text.hidden = !now;
-          this.fitBody();
-          if (now) wrap.scrollIntoView({ block: 'nearest' });
-        });
-        wrap.append(headBtn, text);
-        body.appendChild(wrap);
+        const part = this.makeSection(i, section.label);
+        this.fillText(part.text, section.body);
+        body.appendChild(part.wrap);
       });
+      body.style.minHeight = '';
 
-      this.positionCard();
+      if (keepPlace) this.fitBody(); else this.positionCard();
+      body.scrollTop = scrolled;
     }
 
     /**
@@ -818,11 +938,14 @@
      * the visible area ends on a section boundary, so a heading is never shown
      * cut in half at the bottom edge.
      */
-    fitBody() {
+    fitBody({ streaming = false } = {}) {
       if (!this.card) return;
       const { el: card, head, foot, body } = this.card;
-      body.style.maxHeight = '';
       const room = Math.min(window.innerHeight * 0.7, 700) - head.offsetHeight - foot.offsetHeight;
+      // While words are arriving the edge stays put; it snaps to a section
+      // boundary once, when the answer is complete.
+      if (streaming) { body.style.maxHeight = `${room}px`; return; }
+      body.style.maxHeight = '';
       if (body.scrollHeight <= room) return;
       const top = body.getBoundingClientRect().top;
       let cut = room;
@@ -856,19 +979,28 @@
       left = Math.min(left, window.scrollX + window.innerWidth - width - 16);
       card.style.left = `${Math.max(window.scrollX + 16, left)}px`;
 
-      const height = card.offsetHeight;
-      const fitsBelow = window.innerHeight - rect.bottom >= height + gap;
-      const fitsAbove = rect.top >= height + gap;
-
-      const top = fitsBelow || !fitsAbove
-        ? window.scrollY + rect.bottom + gap
-        : window.scrollY + rect.top - height - gap;
-
-      card.style.top = `${Math.max(window.scrollY + 8, top)}px`;
+      // Decided once per card, for the tallest the card can get, so a growing
+      // answer never makes it flip sides or slide. Above the selection, the
+      // full height is reserved up front, because a card that grew upward
+      // would push the words already shown.
+      if (!this.card.placement) {
+        const tallest = Math.min(window.innerHeight * 0.7, 700);
+        const below = window.innerHeight - rect.bottom >= tallest + gap || rect.top < tallest + gap;
+        this.card.placement = below ? 'below' : 'above';
+        if (!below) {
+          card.style.minHeight = `${tallest}px`;
+          card.style.top = `${Math.max(window.scrollY + 8, window.scrollY + rect.top - tallest - gap)}px`;
+        } else {
+          card.style.top = `${window.scrollY + rect.bottom + gap}px`;
+        }
+      }
     }
 
     closeCard({ restoreFocus = false } = {}) {
       if (!this.card) return;
+      // Closing mid-answer stops the download too.
+      this.port?.disconnect();
+      this.port = null;
       this.card.el.remove();
       this.card = null;
       this.anchor = null;

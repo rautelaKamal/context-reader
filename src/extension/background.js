@@ -43,9 +43,30 @@ async function remainingToday() {
   return Math.max(0, DAILY_LIMIT - usage.used);
 }
 
-async function spend(depth) {
+/** A retry of the same request within this window isn't charged again, here or on the server. */
+const REPEAT_WINDOW_MS = 120_000;
+
+async function alreadyCharged(requestId) {
+  if (!requestId) return false;
+  try {
+    const { charged = {} } = await chrome.storage.local.get('charged');
+    const now = Date.now();
+    const recent = Object.fromEntries(Object.entries(charged).filter(([, at]) => now - at < REPEAT_WINDOW_MS));
+    const seen = requestId in recent;
+    if (!seen) recent[requestId] = now;
+    await chrome.storage.local.set({ charged: recent });
+    return seen;
+  } catch {
+    return false;
+  }
+}
+
+async function spend(depth, requestId) {
   const cost = COST[depth] ?? COST.fast;
   const usage = await readUsage();
+  if (await alreadyCharged(requestId)) {
+    return { ok: true, remaining: Math.max(0, DAILY_LIMIT - usage.used) };
+  }
 
   if (usage.used + cost > DAILY_LIMIT) {
     return { ok: false, remaining: Math.max(0, DAILY_LIMIT - usage.used) };
@@ -102,7 +123,7 @@ const RETRY_ONCE = new Set([500, 502, 503, 504]);
 
 // Answers normally land in about two seconds, but the provider occasionally
 // stalls for tens of seconds. Without a ceiling the card just spins forever.
-const TIMEOUT_MS = { fast: 30_000, deep: 120_000 };
+const TIMEOUT_MS = { fast: 45_000, deep: 150_000 };
 
 /** Origin and path only. See the note in content.js. */
 function cleanUrl(href) {
@@ -236,6 +257,118 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 // passage, nothing happens, and they have no way to know a refresh would fix
 // it. Re-inject on both events so the extension works in the tab they are
 // already reading.
+/**
+ * Streaming answers, over a long-lived port.
+ *
+ * The card opens a port named "explain" and posts one request. This reads the
+ * server's NDJSON stream and posts each event back as it arrives. Each message
+ * on the port counts as extension activity, which keeps this service worker
+ * alive while an answer is streaming. If the card closes, the port disconnects
+ * and the request is aborted, so nothing keeps downloading for a card that's
+ * gone.
+ */
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'explain') return;
+  const controller = new AbortController();
+  let open = true;
+  port.onDisconnect.addListener(() => { open = false; controller.abort(); });
+  const post = (event) => { if (open) port.postMessage(event); };
+
+  port.onMessage.addListener(async (message) => {
+    if (message?.type !== 'explain') return;
+    const { payload, requestId } = message;
+    const depth = payload?.depth === 'deep' ? 'deep' : 'fast';
+    try {
+      const allowance = await spend(depth, requestId);
+      if (!allowance.ok) {
+        post({
+          type: 'error', overLimit: true,
+          message: depth === 'deep'
+            ? `Not enough left today for a deep read (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
+            : `That is your ${DAILY_LIMIT} explanations for today. Resets at midnight.`,
+        });
+        return;
+      }
+      await stream(payload, requestId, controller.signal, (event) => {
+        post(event.type === 'start' ? { ...event, remaining: allowance.remaining } : event);
+      });
+    } catch (error) {
+      if (!open) return;
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      post({ type: 'error', partial: Boolean(error.partial), overLimit: Boolean(error.overLimit),
+        message: offline ? 'No internet connection.' : error.message });
+    }
+  });
+});
+
+/** Reads the server's NDJSON events and hands each to `onEvent`. */
+async function stream(payload, requestId, signal, onEvent, retried = false) {
+  const base = await apiBase();
+  const id = await installId();
+  const body = { ...(payload?.url ? { ...payload, url: cleanUrl(payload.url) } : payload), stream: true };
+  const budget = TIMEOUT_MS[payload?.depth === 'deep' ? 'deep' : 'fast'];
+  let started = false;
+
+  let response;
+  try {
+    response = await fetch(`${base}/api/explain`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(id ? { 'X-Install-Id': id } : {}),
+        ...(requestId ? { 'X-Request-Id': requestId } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.any ? AbortSignal.any([signal, AbortSignal.timeout(budget)]) : signal,
+    });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error(error.name === 'TimeoutError' ? `Took longer than ${Math.round(budget / 1000)}s. Try again.` : 'Could not reach ContextReader. Check your connection and try again.');
+  }
+
+  if (!response.ok) {
+    // Same request id, so the server doesn't charge the retry.
+    if (RETRY_ONCE.has(response.status) && !retried) {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      return stream(payload, requestId, signal, onEvent, true);
+    }
+    const data = await response.json().catch(() => null);
+    const error = new Error(data?.error || FRIENDLY_STATUS[response.status] || `Request failed (${response.status}).`);
+    if (response.status === 429) error.overLimit = true;
+    throw error;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const event = JSON.parse(line);
+        if (event.type === 'summary' || event.type === 'delta') started = true;
+        onEvent(event);
+        if (event.type === 'done' || event.type === 'error') return;
+      }
+    }
+  } catch (error) {
+    if (signal.aborted) throw error;
+    const cut = new Error(started ? 'Answer cut off. Try again.' : 'Could not get an explanation. Try again.');
+    cut.partial = started;
+    throw cut;
+  }
+  // The stream ended without a done event: the connection dropped.
+  const cut = new Error(started ? 'Answer cut off. Try again.' : 'Could not get an explanation. Try again.');
+  cut.partial = started;
+  throw cut;
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const { js } = chrome.runtime.getManifest().content_scripts[0];
   const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
