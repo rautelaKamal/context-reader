@@ -41,3 +41,39 @@ catch unmarked outside knowledge, so Phase B needs a second check.
 **Used in the film?** Only the summary, which contains no outside knowledge:
 "When an ordinary law and the constitution both apply to a court case but
 contradict each other, judges are forced to choose which rule wins."
+
+---
+
+## A check that failed a correct answer: irony-swift
+
+**Found:** 2026-11-04, in the eval run after the 0.3.0 card changes.
+**Case:** `irony-swift`, lens *What's the point?*, on *A Modest Proposal*:
+"a young healthy child well nursed is at a year old a most delicious,
+nourishing, and wholesome food".
+
+**What the answer said** (section *Their position*, quoted from the run):
+
+> The literal statement that a child is "delicious, nourishing, and
+> wholesome food" is entirely satirical; the writer does not actually
+> advocate cannibalism, but rather uses this monstrous proposal to expose the
+> callousness of society and the British ruling class toward the starving
+> poor of Ireland.
+
+**Why it was marked wrong.** The case rejects answers that take the proposal
+at face value, using the pattern `/genuinely (recommend|propos)|sincere
+proposal|actually advocat/i`. The answer reads the irony correctly and says
+so in the negative, "does **not actually advocat**e", which the pattern
+matched. Answers that get irony right often say what the writer does *not*
+mean, so this pattern punished the right reading.
+
+**The fix.** The pattern now ignores a match when a negation (`not`,
+`never`, `nor`, `no`, `n't`) appears within the three words before it. The
+case also carries examples the eval checks before making any request:
+
+* allowed: "does not actually advocate", "doesn't actually advocate", "not a
+  sincere proposal"
+* still caught: "actually advocates eating children", "genuinely
+  recommends", "a sincere proposal"
+
+This repairs a broken check rather than loosening it: every misreading the
+old pattern caught, the new one still catches.

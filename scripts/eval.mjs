@@ -6,13 +6,16 @@
  * matching is a crude proxy for understanding, so the full output is printed
  * too - the checks catch regressions, the text is what you actually judge.
  *
- *   npm run eval            # all cases
- *   npm run eval -- irony   # cases whose name contains "irony"
+ *   npm run eval                    # all fast cases
+ *   npm run eval -- irony           # cases whose name contains "irony"
+ *   npm run eval -- --include-deep  # also the deep cases (they spend the deep model's small daily quota)
  */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
+import { warnIfProductionKey } from './key-guard.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,6 +34,7 @@ const BASE = process.env.PROVIDER_BASE_URL;
 const KEY = process.env.PROVIDER_API_KEY ?? process.env.HUGGING_FACE_API_KEY;
 const MODEL = process.env.EXPLAIN_MODEL;
 if (!KEY) { console.error('No key. Set PROVIDER_API_KEY.'); process.exit(1); }
+warnIfProductionKey(KEY);
 
 const out = join(root, '.test-build');
 rmSync(out, { recursive: true, force: true });
@@ -41,8 +45,13 @@ execFileSync('npx', ['tsc', 'src/lib/modes.ts', 'src/lib/prompts.ts', 'src/lib/c
 writeFileSync(join(out, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const require = createRequire(import.meta.url);
+
+// The extension's own quote checker, loaded as the extension loads it.
+const quoteScope = {};
+vm.runInNewContext(readFileSync(join(root, 'src', 'extension', 'quotes.js'), 'utf8'), { globalThis: quoteScope });
+const Quotes = quoteScope.ContextReaderQuotes;
 const { detectMode } = require(join(out, 'modes.js'));
-const { buildMessages, parseExplanation } = require(join(out, 'prompts.js'));
+const { buildMessages, parseWithOutcome, EXPLANATION_SCHEMA } = require(join(out, 'prompts.js'));
 
 const CASES = [
   {
@@ -79,7 +88,16 @@ const CASES = [
       site: 'gutenberg.org',
     },
     expect: [/iron(y|ic)|satir|sarcas|not (meant|literal)|mock/i],
-    reject: [/genuinely (recommend|propos)|sincere proposal|actually advocat/i],
+    // A misreading asserts the proposal is sincere. A correct reading often
+    // says so in the negative ("does not actually advocate"), so a negation in
+    // the few words before the phrase means it is not the misreading.
+    // See docs/eval-findings.md.
+    reject: [/(?<!(?:not|never|nor|n't|no)\s(?:[\w’']+\s){0,2})(?:genuinely (?:recommend|propos)|sincere(?:ly)? propos|actually advocat)/i],
+    // The check is checked: these must pass and fail as labelled before any request is made.
+    rejectExamples: {
+      allowed: ['the writer does not actually advocate cannibalism', "Swift doesn't actually advocate it", 'this is not a sincere proposal'],
+      caught: ['the writer actually advocates eating children', 'Swift genuinely recommends this', 'a sincere proposal to feed the poor'],
+    },
   },
   {
     name: 'metaphor-not-literal',
@@ -295,12 +313,31 @@ const REPEAT = repeatFlag === -1 ? 1 : Number(argv[repeatFlag + 1] ?? 3);
 const skip = repeatFlag === -1 ? -1 : repeatFlag + 1;
 const positional = argv.filter((a, i) => !a.startsWith('--') && i !== skip);
 const filter = positional[0];
-const cases = filter ? CASES.filter((c) => c.name.includes(filter)) : CASES;
+// Deep cases use the deep model, whose free tier is about 20 requests a day for
+// the whole project. They run only when asked for.
+const INCLUDE_DEEP = argv.includes('--include-deep');
+const skippedDeep = CASES.filter((c) => c.depth === 'deep' && !INCLUDE_DEEP).map((c) => c.name);
+const cases = (filter ? CASES.filter((c) => c.name.includes(filter)) : CASES)
+  .filter((c) => c.depth !== 'deep' || INCLUDE_DEEP);
+if (skippedDeep.length) console.log(`skipping deep cases (pass --include-deep to run them): ${skippedDeep.join(', ')}`);
 /** name -> how many of the REPEAT runs passed. Flakiness is the real signal. */
 const tally = new Map();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// A broken check is worse than none: verify each case's examples before spending a request.
+for (const c of CASES) {
+  for (const t of c.rejectExamples?.allowed ?? []) if (c.reject.some((re) => re.test(t))) throw new Error(`${c.name}: reject check wrongly catches "${t}"`);
+  for (const t of c.rejectExamples?.caught ?? []) if (!c.reject.some((re) => re.test(t))) throw new Error(`${c.name}: reject check misses "${t}"`);
+}
+
+// --no-schema sends requests the old way, without response_format, for comparison.
+const SCHEMA = !process.argv.includes('--no-schema');
+const parseTally = { clean: 0, repaired: 0, failed: 0 };
 let passed = 0, failed = 0;
+// Grounding: of the quotes long enough to count (3+ words), how many really
+// appear in what was sent. The card highlights only those.
+let quotesCounted = 0, quotesVerified = 0;
 const failures = [];
 
 console.log(`\nmodel: ${MODEL}   cases: ${cases.length}\n`);
@@ -330,7 +367,7 @@ for (const [i, testCase] of schedule.entries()) {
           messages: buildMessages(mode, testCase.context),
           max_tokens: (mode === 'lines' ? 1400 : 1100) * (testCase.depth === 'deep' ? 4 : 1),
           temperature: 0.1,
-
+          ...(SCHEMA ? { response_format: { type: 'json_schema', json_schema: { ...EXPLANATION_SCHEMA, strict: true } } } : {}),
         }),
       });
       if (res.status === 503 || res.status === 429) {
@@ -353,10 +390,15 @@ for (const [i, testCase] of schedule.entries()) {
     continue;
   }
 
-  const parsed = parseExplanation(raw);
+  const { parsed, outcome } = parseWithOutcome(raw);
+  parseTally[outcome] += 1;
   const text = parsed
     ? [parsed.summary, ...parsed.sections.map((s) => `${s.label}: ${s.body}`)].join('\n')
     : raw;
+
+  const evidence = parsed ? Quotes.answerStats(parsed, Quotes.sentText(testCase.context)) : { counted: 0, verified: 0 };
+  quotesCounted += evidence.counted;
+  quotesVerified += evidence.verified;
 
   const missing = (testCase.expect ?? []).filter((re) => !re.test(text));
   // Reject patterns describe misreadings the answer must not assert. Since the
@@ -381,6 +423,8 @@ for (const [i, testCase] of schedule.entries()) {
   if (!parsed) console.log('  !! output did not parse as JSON');
   if (missing.length) console.log(`  !! missing: ${missing.join(' , ')}`);
   if (forbidden.length) console.log(`  !! contained: ${forbidden.join(' , ')}`);
+  if (evidence.counted) console.log(`  quotes verified: ${evidence.verified} of ${evidence.counted}`);
+  if (outcome !== 'clean') console.log(`  reply ${outcome === 'repaired' ? 'needed stray quotes mended' : 'could not be read'}`);
   console.log(`  ${text.replace(/\n/g, '\n  ').slice(0, 700)}\n`);
 
   if (i < schedule.length - 1) await sleep(4500); // stay inside the free-tier RPM
@@ -388,6 +432,9 @@ for (const [i, testCase] of schedule.entries()) {
 
 console.log(`${'='.repeat(70)}\n${passed} passed, ${failed} failed` +
   (failures.length ? `  (${[...new Set(failures)].join(', ')})` : ''));
+// Counts, not percentages: with a couple of dozen quotes, a percentage claims more precision than there is.
+console.log(`verified quotes (${Quotes.MIN_WORDS}+ words): ${quotesVerified} of ${quotesCounted}`);
+console.log(`replies (${SCHEMA ? 'schema' : 'no schema'}): ${parseTally.clean} parsed as sent, ${parseTally.repaired} needed stray quotes mended, ${parseTally.failed} unreadable`);
 
 if (REPEAT > 1) {
   const unstable = [...tally.entries()].filter(([, t]) => t.pass > 0 && t.pass < t.total);

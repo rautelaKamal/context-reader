@@ -234,3 +234,184 @@ test('day window', async (t) => {
     );
   });
 });
+
+test('parse outcome counter', async (t) => {
+  const { countParse } = require('../.test-build/quota');
+  const day = 20_000 * 86_400_000;
+
+  await t.test('counts each outcome per day, as a number only', async () => {
+    const seen = [];
+    const pipeline = async (commands) => { seen.push(...commands); return commands.map(() => 1); };
+    await countParse(pipeline, 'repaired', 0, day);
+    assert.deepEqual(seen, [['INCR', 'parse:20000:repaired'], ['EXPIRE', 'parse:20000:repaired', 2592000]]);
+  });
+
+  await t.test('does nothing without a store, and never throws when the store fails', async () => {
+    await countParse(null, 'failed', 0, day);
+    await countParse(async () => { throw new Error('down'); }, 'failed', 0, day);
+  });
+});
+
+test('a retry with the same request id is not charged twice', async (t) => {
+  // A fake that also understands SET NX, the way Redis answers it: OK the first time, null after.
+  function redisWithSet() {
+    const r = fakeRedis();
+    const inner = r.pipeline;
+    r.pipeline = async (commands) => commands[0][0] === 'SET'
+      ? commands.map(([, key]) => (key in r.store ? null : ((r.store[key] = '1'), 'OK')))
+      : inner(commands);
+    return r;
+  }
+  const base = { installId: 'install-1', ip: '1.2.3.4', limits: LIMITS, now: 0 };
+
+  await t.test('the first request with an id is charged, the repeat is free', async () => {
+    const r = redisWithSet();
+    const first = await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    const again = await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    assert.equal(first.remaining, 29);
+    assert.equal(again.ok, true);
+    assert.equal(again.remaining, 29, 'still one used');
+  });
+
+  await t.test('a different id is a new request and is charged', async () => {
+    const r = redisWithSet();
+    await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    const other = await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-b' });
+    assert.equal(other.remaining, 28);
+  });
+
+  await t.test('the same id from another install is charged', async () => {
+    const r = redisWithSet();
+    await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    const elsewhere = await spend(r.pipeline, { ...base, installId: 'install-2', cost: 1, requestId: 'req-a' });
+    assert.equal(elsewhere.remaining, 29);
+  });
+});
+
+test('deep daily cap and refunds', async (t) => {
+  const { reserveDeep, releaseDeep, closeDeepForToday, refund, deepCapFromEnv, pacificDay } = require('../.test-build/quota');
+  const DEEP_KEY = `cr:deep:${pacificDay(0).key}`;
+  /** A fake Redis with the commands these use. */
+  function redis(seed = {}) {
+    const store = { ...seed };
+    const pipeline = async (commands) => commands.map(([verb, key, arg, flag]) => {
+      if (verb === 'INCR') return (store[key] = (Number(store[key]) || 0) + 1);
+      if (verb === 'INCRBY') return (store[key] = (Number(store[key]) || 0) + Number(arg));
+      if (verb === 'DECR') return (store[key] = (Number(store[key]) || 0) - 1);
+      if (verb === 'DECRBY') return (store[key] = (Number(store[key]) || 0) - Number(arg));
+      if (verb === 'EXPIRE') return 1;
+      if (verb === 'DEL') { const had = key in store; delete store[key]; return had ? 1 : 0; }
+      if (verb === 'SET') { if (flag === 'NX' && key in store) return null; store[key] = String(arg); return 'OK'; }
+      throw new Error(`unexpected ${verb}`);
+    });
+    return { store, pipeline };
+  }
+
+  await t.test('the cap defaults to 15 and reads DEEP_DAILY_CAP', () => {
+    delete process.env.DEEP_DAILY_CAP;
+    assert.equal(deepCapFromEnv(), 15);
+    process.env.DEEP_DAILY_CAP = '4';
+    assert.equal(deepCapFromEnv(), 4);
+    delete process.env.DEEP_DAILY_CAP;
+  });
+
+  await t.test('deep reads are allowed up to the cap, then refused, and a refusal takes no slot', async () => {
+    const r = redis();
+    const results = [];
+    for (let i = 0; i < 4; i++) results.push((await reserveDeep(r.pipeline, 3, 0)).ok);
+    assert.deepEqual(results, [true, true, true, false]);
+    assert.equal(r.store[DEEP_KEY], 3, 'still three served');
+  });
+
+  await t.test('a slot reserved for a reader who was then refused is given back', async () => {
+    const r = redis();
+    await reserveDeep(r.pipeline, 3, 0);
+    await releaseDeep(r.pipeline, 0);
+    assert.equal(r.store[DEEP_KEY], 0);
+  });
+
+  await t.test('when the provider says its daily quota is spent, deep reads close for the day', async () => {
+    const r = redis();
+    await closeDeepForToday(r.pipeline, 15, 0);
+    assert.equal((await reserveDeep(r.pipeline, 15, 0)).ok, false);
+  });
+
+  await t.test('a refused request is refunded in full, and its id forgotten', async () => {
+    const r = redis();
+    const base = { installId: 'install-1', ip: '1.2.3.4', limits: LIMITS, now: 0, requestId: 'req-x' };
+    // Charge through spend with SET support, then refund.
+    const charged = await spend(r.pipeline, { ...base, cost: 3 });
+    assert.equal(charged.charged, 3);
+    await refund(r.pipeline, { ...base, cost: charged.charged });
+    const counters = Object.entries(r.store).filter(([k]) => /^cr:[ipg]:/.test(k)).map(([, v]) => v);
+    assert.deepEqual(counters, [0, 0, 0]);
+    assert.equal(Object.keys(r.store).some((k) => k.startsWith('cr:r:')), false);
+  });
+
+  await t.test('a repeat request charged nothing, so refunding it gives back nothing', async () => {
+    const r = redis();
+    const base = { installId: 'install-1', ip: '1.2.3.4', limits: LIMITS, now: 0, requestId: 'req-y' };
+    await spend(r.pipeline, { ...base, cost: 1 });
+    const repeat = await spend(r.pipeline, { ...base, cost: 1 });
+    assert.equal(repeat.charged, 0);
+  });
+});
+
+test('daily quota errors are told apart from momentary ones', () => {
+  const { isDailyQuota } = require('../.test-build/provider');
+  assert.equal(isDailyQuota(429, '{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}'), true);
+  assert.equal(isDailyQuota(429, '{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}'), false);
+  assert.equal(isDailyQuota(503, 'PerDay'), false);
+});
+
+test('the deep cap resets at midnight Pacific time, PST and PDT', async (t) => {
+  const { pacificDay, reserveDeep } = require('../.test-build/quota');
+  const at = (iso) => Date.parse(iso);
+  const resetIso = (iso) => new Date(pacificDay(at(iso)).resetAt * 1000).toISOString();
+
+  await t.test('winter (PST, UTC-8): the day turns at 08:00 UTC', () => {
+    assert.equal(pacificDay(at('2026-01-15T07:59:59Z')).key, '2026-01-14');
+    assert.equal(pacificDay(at('2026-01-15T08:00:00Z')).key, '2026-01-15');
+    assert.equal(resetIso('2026-01-15T07:59:59Z'), '2026-01-15T08:00:00.000Z');
+    assert.equal(resetIso('2026-01-15T08:00:00Z'), '2026-01-16T08:00:00.000Z');
+  });
+
+  await t.test('summer (PDT, UTC-7): the day turns at 07:00 UTC', () => {
+    assert.equal(pacificDay(at('2026-07-15T06:59:59Z')).key, '2026-07-14');
+    assert.equal(pacificDay(at('2026-07-15T07:00:00Z')).key, '2026-07-15');
+    assert.equal(resetIso('2026-07-15T06:59:59Z'), '2026-07-15T07:00:00.000Z');
+  });
+
+  await t.test('the night the clocks go forward (8 March 2026) still resets at the next midnight', () => {
+    // 7 March is PST; midnight starting 8 March is still PST (the change is at 2am).
+    assert.equal(resetIso('2026-03-07T20:00:00Z'), '2026-03-08T08:00:00.000Z');
+    // During 8 March (PDT after 2am), the next midnight is in PDT.
+    assert.equal(resetIso('2026-03-08T20:00:00Z'), '2026-03-09T07:00:00.000Z');
+  });
+
+  await t.test('the night the clocks go back (1 November 2026) too', () => {
+    assert.equal(resetIso('2026-10-31T20:00:00Z'), '2026-11-01T07:00:00.000Z');
+    assert.equal(resetIso('2026-11-01T20:00:00Z'), '2026-11-02T08:00:00.000Z');
+  });
+
+  await t.test('the cap counts on the Pacific day: one second either side of midnight are different days', async () => {
+    const store = {};
+    const pipeline = async (commands) => commands.map(([verb, key]) => {
+      if (verb === 'INCR') return (store[key] = (store[key] ?? 0) + 1);
+      if (verb === 'DECR') return (store[key] = (store[key] ?? 0) - 1);
+      return 1;
+    });
+    assert.equal((await reserveDeep(pipeline, 1, at('2026-01-15T07:59:59Z'))).ok, true);
+    assert.equal((await reserveDeep(pipeline, 1, at('2026-01-15T07:59:59Z'))).ok, false, 'full before midnight');
+    assert.equal((await reserveDeep(pipeline, 1, at('2026-01-15T08:00:00Z'))).ok, true, 'a fresh day after');
+    assert.deepEqual(Object.keys(store).sort(), ['cr:deep:2026-01-14', 'cr:deep:2026-01-15']);
+  });
+
+  await t.test("the reader's own allowance stays on its own day, not Pacific", () => {
+    const { dayWindow } = require('../.test-build/quota');
+    // 07:59 UTC on 15 Jan is still 14 Jan in California but already 15 Jan in India.
+    const now = at('2026-01-15T07:59:00Z');
+    assert.notEqual(dayWindow(330, now).key, String(Math.floor(Date.parse('2026-01-14T00:00:00Z') / 86_400_000)));
+    assert.equal(pacificDay(now).key, '2026-01-14');
+  });
+});

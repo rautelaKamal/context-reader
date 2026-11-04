@@ -23,41 +23,110 @@ const DAILY_LIMIT = 30;
 const COST = { fast: 1, deep: 3 };
 
 function today() {
-  // Local date, so the reset happens at the reader's midnight, not UTC's.
   const now = new Date();
   return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 }
 
+/**
+ * The count on this device follows the server's day, so the number shown and
+ * the number enforced reset together. Each server reply says when its day
+ * ends (resetAt); until the first reply, the local date stands in.
+ */
 async function readUsage() {
   try {
     const { usage } = await chrome.storage.local.get('usage');
-    if (usage?.date === today()) return usage;
+    if (usage && (usage.until ? Date.now() < usage.until : usage.date === today())) return usage;
   } catch {
     // storage unavailable - treat as a fresh day rather than blocking the read
   }
-  return { date: today(), used: 0 };
+  return { date: today(), used: 0, until: null };
 }
 
-async function remainingToday() {
-  const usage = await readUsage();
-  return Math.max(0, DAILY_LIMIT - usage.used);
+/** Record when the server's day ends (Unix seconds), from a reply. */
+async function noteReset(resetAt) {
+  if (!Number.isFinite(resetAt)) return;
+  try {
+    const usage = await readUsage();
+    await chrome.storage.local.set({ usage: { ...usage, until: resetAt * 1000 } });
+  } catch {
+    // best effort
+  }
 }
 
-async function spend(depth) {
+/** When the allowance resets, in the reader's own time: "at 18:30" or "tomorrow at 18:30". */
+function resetPhrase(until, now = new Date()) {
+  if (!until) return 'once a day';
+  const at = new Date(until);
+  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return day(at) > day(now) ? `tomorrow at ${time}` : `at ${time}`;
+}
+
+/** A retry of the same request within this window isn't charged again, here or on the server. */
+const REPEAT_WINDOW_MS = 120_000;
+
+async function alreadyCharged(requestId) {
+  if (!requestId) return false;
+  try {
+    const { charged = {} } = await chrome.storage.local.get('charged');
+    const now = Date.now();
+    const recent = Object.fromEntries(Object.entries(charged).filter(([, at]) => now - at < REPEAT_WINDOW_MS));
+    const seen = requestId in recent;
+    if (!seen) recent[requestId] = now;
+    await chrome.storage.local.set({ charged: recent });
+    return seen;
+  } catch {
+    return false;
+  }
+}
+
+/** Give back a local charge for a request the server refused without serving. */
+async function refundLocal(depth, requestId) {
+  try {
+    const usage = await readUsage();
+    const cost = COST[depth] ?? COST.fast;
+    const stored = await chrome.storage.local.get('charged');
+    const charged = stored?.charged ?? {};
+    // Only refund what was actually charged here: a repeat id was free already.
+    if (requestId && !(requestId in charged)) return Math.max(0, DAILY_LIMIT - usage.used);
+    delete charged[requestId];
+    const used = Math.max(0, usage.used - cost);
+    await chrome.storage.local.set({ usage: { date: usage.date, used }, charged });
+    return DAILY_LIMIT - used;
+  } catch {
+    // If it can't be recorded, the reader loses one; better than blocking.
+    return undefined;
+  }
+}
+
+/** Deep reads are closed until this time (ms), after the server said so. */
+async function deepRestingUntil() {
+  try { return (await chrome.storage.local.get('deepRestingUntil'))?.deepRestingUntil ?? 0; } catch { return 0; }
+}
+async function restDeep(resetAt) {
+  // The server's reset time if it gave one, otherwise the end of the reader's day.
+  const until = resetAt ? resetAt * 1000 : new Date().setHours(24, 0, 0, 0);
+  try { await chrome.storage.local.set({ deepRestingUntil: until }); } catch { /* best effort */ }
+}
+
+async function spend(depth, requestId) {
   const cost = COST[depth] ?? COST.fast;
   const usage = await readUsage();
-
-  if (usage.used + cost > DAILY_LIMIT) {
-    return { ok: false, remaining: Math.max(0, DAILY_LIMIT - usage.used) };
+  if (await alreadyCharged(requestId)) {
+    return { ok: true, remaining: Math.max(0, DAILY_LIMIT - usage.used) };
   }
 
-  const next = { date: usage.date, used: usage.used + cost };
+  if (usage.used + cost > DAILY_LIMIT) {
+    return { ok: false, remaining: Math.max(0, DAILY_LIMIT - usage.used), until: usage.until };
+  }
+
+  const next = { date: usage.date, used: usage.used + cost, until: usage.until ?? null };
   try {
     await chrome.storage.local.set({ usage: next });
   } catch {
     // If it cannot be recorded, let the request through rather than deny it.
   }
-  return { ok: true, remaining: DAILY_LIMIT - next.used };
+  return { ok: true, remaining: DAILY_LIMIT - next.used, until: next.until };
 }
 
 /**
@@ -102,7 +171,7 @@ const RETRY_ONCE = new Set([500, 502, 503, 504]);
 
 // Answers normally land in about two seconds, but the provider occasionally
 // stalls for tens of seconds. Without a ceiling the card just spins forever.
-const TIMEOUT_MS = { fast: 30_000, deep: 120_000 };
+const TIMEOUT_MS = { fast: 45_000, deep: 150_000 };
 
 /** Origin and path only. See the note in content.js. */
 function cleanUrl(href) {
@@ -161,10 +230,43 @@ async function call(endpoint, payload) {
   return response.json();
 }
 
+/** The name of the manifest command; Chrome binds the suggested shortcut to it. */
+const COMMAND = 'explain-selection';
+
+/**
+ * The shortcut Chrome actually assigned, as it displays it ("⇧⌘E",
+ * "Ctrl+Shift+E"), or '' when it isn't assigned: another extension may hold
+ * the same keys, or the reader may have cleared it in chrome://extensions/shortcuts.
+ */
+async function assignedShortcut() {
+  try {
+    const commands = await chrome.commands.getAll();
+    return commands.find((c) => c.name === COMMAND)?.shortcut ?? '';
+  } catch {
+    return '';
+  }
+}
+
+// Chrome handles the shortcut itself, before the page sees the keys, so sites
+// that capture keystrokes (mail, editors) can't swallow it. Every frame in the
+// tab gets the message; the one holding the selection opens the card.
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== COMMAND || !tab?.id) return;
+  chrome.tabs.sendMessage(tab.id, { type: COMMAND }).catch(() => {
+    // Restricted pages (the Web Store, chrome://) have no content script.
+  });
+});
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request?.type === 'shortcut') {
+    assignedShortcut().then((shortcut) => sendResponse({ shortcut }));
+    return true;
+  }
+
   if (request?.type === 'usage') {
-    remainingToday().then((remaining) =>
-      sendResponse({ success: true, remaining, limit: DAILY_LIMIT }));
+    readUsage().then((usage) => sendResponse({
+      success: true, remaining: Math.max(0, DAILY_LIMIT - usage.used), limit: DAILY_LIMIT, resets: resetPhrase(usage.until),
+    }));
     return true;
   }
 
@@ -177,14 +279,16 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       if (!allowance.ok) {
         const err = new Error(
           depth === 'deep'
-            ? `Not enough left today for a deep read (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
-            : `That is your ${DAILY_LIMIT} explanations for today. Resets at midnight.`,
+            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets ${resetPhrase(allowance.until)}.`
+            : `That is your ${DAILY_LIMIT} explanations for today. Resets ${resetPhrase(allowance.until)}.`,
         );
         err.overLimit = true;
         throw err;
       }
-      return call('/api/explain', request.payload).then((data) =>
-        sendResponse({ success: true, data, remaining: allowance.remaining }));
+      return call('/api/explain', request.payload).then(async (data) => {
+        await noteReset(data?.quota?.resetAt);
+        sendResponse({ success: true, data, remaining: allowance.remaining });
+      });
     })
     .catch((error) => {
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -204,12 +308,159 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 // passage, nothing happens, and they have no way to know a refresh would fix
 // it. Re-inject on both events so the extension works in the tab they are
 // already reading.
+/**
+ * Streaming answers, over a long-lived port.
+ *
+ * The card opens a port named "explain" and posts one request. This reads the
+ * server's NDJSON stream and posts each event back as it arrives. Each message
+ * on the port counts as extension activity, which keeps this service worker
+ * alive while an answer is streaming. If the card closes, the port disconnects
+ * and the request is aborted, so nothing keeps downloading for a card that's
+ * gone.
+ */
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'explain') return;
+  const controller = new AbortController();
+  let open = true;
+  port.onDisconnect.addListener(() => { open = false; controller.abort(); });
+  const post = (event) => { if (open) port.postMessage(event); };
+
+  port.onMessage.addListener(async (message) => {
+    if (message?.type !== 'explain') return;
+    const { payload, requestId } = message;
+    const depth = payload?.depth === 'deep' ? 'deep' : 'fast';
+    try {
+      // Already known to be closed today: say so without charging or asking.
+      const restingUntil = depth === 'deep' ? await deepRestingUntil() : 0;
+      if (restingUntil > Date.now()) {
+        post({ type: 'error', code: 'deep_resting', refunded: true, resetAt: Math.floor(restingUntil / 1000), message: 'Go deeper is resting until its shared daily quota resets. Your allowance was not charged.' });
+        return;
+      }
+      const allowance = await spend(depth, requestId);
+      if (!allowance.ok) {
+        post({
+          type: 'error', overLimit: true,
+          message: depth === 'deep'
+            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets ${resetPhrase(allowance.until)}.`
+            : `That is your ${DAILY_LIMIT} explanations for today. Resets ${resetPhrase(allowance.until)}.`,
+        });
+        return;
+      }
+      await stream(payload, requestId, controller.signal, (event) => {
+        if (event.type === 'error' && event.refunded) {
+          // The server refused without serving; settle locally, then tell the card.
+          // The card showed the charged count from the start event; send the refunded one.
+          Promise.all([refundLocal(depth, requestId), event.code === 'deep_resting' ? restDeep(event.resetAt) : null])
+            .then(([remaining]) => post({ ...event, remaining }));
+          return;
+        }
+        if (event.type === 'start') {
+          const until = Number.isFinite(event.quota?.resetAt) ? event.quota.resetAt * 1000 : allowance.until;
+          noteReset(event.quota?.resetAt);
+          post({ ...event, remaining: allowance.remaining, resets: resetPhrase(until) });
+          return;
+        }
+        post(event);
+      });
+    } catch (error) {
+      let remaining;
+      if (error.refunded) {
+        remaining = await refundLocal(depth, requestId);
+        if (error.code === 'deep_resting') await restDeep(error.resetAt);
+      }
+      if (!open) return;
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      post({ type: 'error', partial: Boolean(error.partial), overLimit: Boolean(error.overLimit),
+        code: error.code, refunded: Boolean(error.refunded), remaining, resetAt: error.resetAt,
+        message: offline ? 'No internet connection.' : error.message });
+    }
+  });
+});
+
+/** Reads the server's NDJSON events and hands each to `onEvent`. */
+async function stream(payload, requestId, signal, onEvent, retried = false) {
+  const base = await apiBase();
+  const id = await installId();
+  const body = { ...(payload?.url ? { ...payload, url: cleanUrl(payload.url) } : payload), stream: true };
+  const budget = TIMEOUT_MS[payload?.depth === 'deep' ? 'deep' : 'fast'];
+  let started = false;
+
+  let response;
+  try {
+    response = await fetch(`${base}/api/explain`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(id ? { 'X-Install-Id': id } : {}),
+        ...(requestId ? { 'X-Request-Id': requestId } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.any ? AbortSignal.any([signal, AbortSignal.timeout(budget)]) : signal,
+    });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error(error.name === 'TimeoutError' ? `Took longer than ${Math.round(budget / 1000)}s. Try again.` : 'Could not reach ContextReader. Check your connection and try again.');
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    // A refusal the server explained (deep resting, provider busy) is final
+    // and wasn't charged. Anything else on a 5xx is retried once, with the
+    // same request id, so the server doesn't charge the retry.
+    if (data?.code) {
+      const refused = new Error(data.error);
+      Object.assign(refused, { code: data.code, refunded: Boolean(data.refunded), resetAt: data.resetAt });
+      throw refused;
+    }
+    if (RETRY_ONCE.has(response.status) && !retried) {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      return stream(payload, requestId, signal, onEvent, true);
+    }
+    const error = new Error(data?.error || FRIENDLY_STATUS[response.status] || `Request failed (${response.status}).`);
+    if (response.status === 429) {
+      error.overLimit = true;
+      await noteReset(data?.quota?.resetAt ?? Number(response.headers?.get?.('X-Quota-Reset')));
+    }
+    throw error;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const event = JSON.parse(line);
+        if (event.type === 'summary' || event.type === 'delta') started = true;
+        onEvent(event);
+        if (event.type === 'done' || event.type === 'error') return;
+      }
+    }
+  } catch (error) {
+    if (signal.aborted) throw error;
+    const cut = new Error(started ? 'Answer cut off. Try again.' : 'Could not get an explanation. Try again.');
+    cut.partial = started;
+    throw cut;
+  }
+  // The stream ended without a done event: the connection dropped.
+  const cut = new Error(started ? 'Answer cut off. Try again.' : 'Could not get an explanation. Try again.');
+  cut.partial = started;
+  throw cut;
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const { js } = chrome.runtime.getManifest().content_scripts[0];
   const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
   for (const tab of tabs) {
     // Restricted pages (the Web Store, chrome://, other extensions) refuse, and
     // that is fine. There is nothing to read there.
-    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: js }).catch(() => {});
+    chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: js }).catch(() => {});
   }
 });

@@ -10,9 +10,12 @@ const { join } = require('node:path');
 
 const SOURCE = readFileSync(join(__dirname, '..', 'src', 'extension', 'background.js'), 'utf8');
 
-function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } }, breakStorage = false } = {}) {
+function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } }, breakStorage = false, shortcut = '⇧⌘E', streamLines = null } = {}) {
   let listener = null;
+  let onCommand = null;
+  let onConnect = null;
   const calls = [];
+  const tabMessages = [];
 
   const context = {
     console,
@@ -25,8 +28,14 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
     // wrong answer rather than a crash.
     URL: globalThis.URL,
     JSON: globalThis.JSON,
+    TextDecoder: globalThis.TextDecoder,
+    AbortController: globalThis.AbortController,
     fetch: async (url, init) => {
       calls.push({ url, body: JSON.parse(init.body), headers: init.headers });
+      if (streamLines) {
+        const chunks = streamLines.map((l) => new TextEncoder().encode(typeof l === 'string' ? l : `${JSON.stringify(l)}\n`));
+        return { ok: true, status: 200, body: { getReader: () => ({ read: async () => (chunks.length ? { value: chunks.shift(), done: false } : { done: true }) }) } };
+      }
       return {
         ok: respondWith.ok,
         status: respondWith.status ?? 200,
@@ -37,10 +46,18 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
     chrome: {
       runtime: {
         onMessage: { addListener: (fn) => { listener = fn; } },
+        onConnect: { addListener: (fn) => { onConnect = fn; } },
         // The worker registers an onInstalled handler at load time to
         // re-inject into already open tabs. These tests only exercise the
         // quota path, so the handler is accepted and never invoked.
         onInstalled: { addListener: () => {} },
+      },
+      commands: {
+        onCommand: { addListener: (fn) => { onCommand = fn; } },
+        getAll: async () => [{ name: 'explain-selection', shortcut }, { name: '_execute_action', shortcut: '' }],
+      },
+      tabs: {
+        sendMessage: async (tabId, message) => { tabMessages.push({ tabId, message }); },
       },
       storage: {
         local: {
@@ -62,7 +79,21 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
   const send = (message) =>
     new Promise((resolve) => { listener(message, null, resolve); });
 
-  return { send, store, calls };
+  /** Opens a fake port the way the card does, posts a request, and collects what comes back. */
+  const connect = (message) => new Promise((resolve) => {
+    const received = [];
+    let onPortMessage = null;
+    const port = {
+      name: 'explain',
+      postMessage: (e) => { received.push(e); if (e.type === 'done' || e.type === 'error') resolve(received); },
+      onMessage: { addListener: (fn) => { onPortMessage = fn; } },
+      onDisconnect: { addListener: () => {} },
+    };
+    onConnect(port);
+    onPortMessage(message);
+  });
+
+  return { send, store, calls, tabMessages, connect, command: (name, tab) => onCommand(name, tab) };
 }
 
 const explain = (depth) => ({
@@ -210,5 +241,152 @@ test('daily allowance', async (t) => {
     const res = await send(explain());
     assert.equal(res.success, false);
     assert.equal(res.error, 'No text was selected');
+  });
+});
+
+test('keyboard shortcut', async (t) => {
+  await t.test('the command is forwarded to the tab, where the frame holding the selection opens the card', async () => {
+    const { command, tabMessages } = bootWorker();
+    command('explain-selection', { id: 7 });
+    assert.deepEqual(JSON.parse(JSON.stringify(tabMessages)), [{ tabId: 7, message: { type: 'explain-selection' } }]);
+  });
+
+  await t.test('other commands and tab-less events are ignored', async () => {
+    const { command, tabMessages } = bootWorker();
+    command('something-else', { id: 7 });
+    command('explain-selection', undefined);
+    assert.equal(tabMessages.length, 0);
+  });
+
+  await t.test('the pill is told the shortcut Chrome actually assigned', async () => {
+    const { send } = bootWorker({ shortcut: 'Ctrl+Shift+E' });
+    assert.equal((await send({ type: 'shortcut' })).shortcut, 'Ctrl+Shift+E');
+  });
+
+  await t.test('an unassigned shortcut comes back empty, so the pill hides it', async () => {
+    const { send } = bootWorker({ shortcut: '' });
+    assert.equal((await send({ type: 'shortcut' })).shortcut, '');
+  });
+});
+
+test('streaming over a port', async (t) => {
+  const lines = [
+    { type: 'start', mode: 'plain', depth: 'fast', modes: [] },
+    { type: 'summary', text: 'The gist' },
+    { type: 'section', label: 'In other words' },
+    { type: 'delta', text: 'More.' },
+    { type: 'done', result: { summary: 'The gist', sections: [{ label: 'In other words', body: 'More.' }] } },
+  ];
+  const request = (id) => ({ type: 'explain', requestId: id, payload: { selection: 'a passage', url: 'https://x.test/a?token=1' } });
+
+  await t.test('events arrive in order, and the start carries the allowance', async () => {
+    const { connect } = bootWorker({ streamLines: lines });
+    const got = JSON.parse(JSON.stringify(await connect(request('req-0001'))));
+    assert.deepEqual(got.map((e) => e.type), ['start', 'summary', 'section', 'delta', 'done']);
+    assert.equal(got[0].remaining, 29);
+  });
+
+  await t.test('the request asks for a stream, carries its id, and still strips the address', async () => {
+    const { connect, calls } = bootWorker({ streamLines: lines });
+    await connect(request('req-0002'));
+    assert.equal(calls[0].body.stream, true);
+    assert.equal(calls[0].headers['X-Request-Id'], 'req-0002');
+    assert.equal(calls[0].body.url, 'https://x.test/a');
+  });
+
+  await t.test('an event split across network chunks is still read whole', async () => {
+    const whole = lines.map((l) => `${JSON.stringify(l)}\n`).join('');
+    const { connect } = bootWorker({ streamLines: [whole.slice(0, 37), whole.slice(37, 90), whole.slice(90)] });
+    const got = await connect(request('req-0003'));
+    assert.equal(got.at(-1).type, 'done');
+  });
+
+  await t.test('a stream that drops after words arrived is reported as cut off', async () => {
+    const { connect } = bootWorker({ streamLines: lines.slice(0, 2) });
+    const got = await connect(request('req-0004'));
+    assert.equal(got.at(-1).type, 'error');
+    assert.equal(got.at(-1).partial, true);
+    assert.match(got.at(-1).message, /cut off/);
+  });
+
+  await t.test('retrying the same request id is charged once', async () => {
+    const store = {};
+    const first = bootWorker({ store, streamLines: lines });
+    await first.connect(request('req-0005'));
+    const second = bootWorker({ store, streamLines: lines });
+    const got = await second.connect(request('req-0005'));
+    assert.equal(got[0].remaining, 29, 'still one used');
+    const third = bootWorker({ store, streamLines: lines });
+    assert.equal((await third.connect(request('req-0006')))[0].remaining, 28, 'a new id is charged');
+  });
+});
+
+test('deep reads that are refused', async (t) => {
+  const deep = (id) => ({ type: 'explain', requestId: id, payload: { selection: 'a passage', depth: 'deep' } });
+  const resting = { ok: false, status: 503, body: { code: 'deep_resting', refunded: true, error: 'Go deeper is resting until tomorrow.', resetAt: Math.floor(Date.now() / 1000) + 3600 } };
+
+  await t.test('a deep read refused by the server costs the reader nothing and is not retried', async () => {
+    const store = {};
+    const { connect, calls, send } = bootWorker({ store, respondWith: resting });
+    const got = await connect(deep('req-deep-1'));
+    assert.equal(got.at(-1).code, 'deep_resting');
+    assert.equal(calls.length, 1, 'no retry of a refusal');
+    assert.equal((await send({ type: 'usage' })).remaining, 30, 'allowance untouched');
+  });
+
+  await t.test('once resting, the next deep read is refused without a request', async () => {
+    const store = {};
+    await bootWorker({ store, respondWith: resting }).connect(deep('req-deep-2'));
+    const again = bootWorker({ store, respondWith: resting });
+    const got = await again.connect(deep('req-deep-3'));
+    assert.equal(got.at(-1).code, 'deep_resting');
+    assert.equal(again.calls.length, 0);
+  });
+
+  await t.test('a provider refusal mid-stream is refunded too', async () => {
+    const store = {};
+    const lines = [{ type: 'start', mode: 'plain', depth: 'fast', modes: [] }, { type: 'error', code: 'busy', refunded: true, message: 'The model is busy.' }];
+    const { connect, send } = bootWorker({ store, streamLines: lines });
+    const got = await connect({ type: 'explain', requestId: 'req-busy-1', payload: { selection: 'x' } });
+    assert.equal(got.at(-1).code, 'busy');
+    assert.equal(got.at(-1).remaining, 30, 'the card is told the refunded count');
+    assert.equal((await send({ type: 'usage' })).remaining, 30);
+  });
+});
+
+test('the allowance resets when the server says, shown in local time', async (t) => {
+  const inAnHour = Math.floor(Date.now() / 1000) + 3600;
+  const lines = [
+    { type: 'start', mode: 'plain', depth: 'fast', modes: [], quota: { remaining: 29, resetAt: inAnHour } },
+    { type: 'done', result: { summary: 's', sections: [] } },
+  ];
+  const timeOf = (s) => new Date(s * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  await t.test('the card is told the reset time from the server, in the reader\'s time', async () => {
+    const { connect } = bootWorker({ streamLines: lines });
+    const got = await connect({ type: 'explain', requestId: 'req-reset-1', payload: { selection: 'x' } });
+    assert.match(got[0].resets, /^(at|tomorrow at) /);
+    assert.ok(got[0].resets.endsWith(timeOf(inAnHour)));
+  });
+
+  await t.test('the popup gets the same phrase, and nothing says midnight', async () => {
+    const store = {};
+    await bootWorker({ store, streamLines: lines }).connect({ type: 'explain', requestId: 'req-reset-2', payload: { selection: 'x' } });
+    const usage = await bootWorker({ store }).send({ type: 'usage' });
+    assert.ok(usage.resets.endsWith(timeOf(inAnHour)));
+    assert.equal(usage.remaining, 29);
+  });
+
+  await t.test('once the server\'s reset time has passed, the local count starts again', async () => {
+    const store = { usage: { date: 'whenever', used: 12, until: Date.now() - 1000 } };
+    const usage = await bootWorker({ store }).send({ type: 'usage' });
+    assert.equal(usage.remaining, 30);
+  });
+
+  await t.test('the over-limit message names the reset time, not midnight', async () => {
+    const store = { usage: { date: 'x', used: 30, until: inAnHour * 1000 } };
+    const got = await bootWorker({ store }).connect({ type: 'explain', requestId: 'req-reset-3', payload: { selection: 'x' } });
+    assert.match(got.at(-1).message, new RegExp(`Resets (at|tomorrow at) ${timeOf(inAnHour).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`));
+    assert.doesNotMatch(got.at(-1).message, /midnight/);
   });
 });

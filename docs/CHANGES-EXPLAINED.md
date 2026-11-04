@@ -1483,3 +1483,672 @@ A: It only runs when the original fails to parse, so valid JSON is never
 touched. There's a test that valid JSON passes through unchanged. And the
 rule is conservative: a quotation mark only counts as the end of a string
 when what follows is clearly JSON structure.
+
+---
+
+## Share one quote checker between the card and the eval
+
+**What changed.** `src/extension/quotes.js` is a small plain-script module
+that finds the double-quoted spans in an answer and checks each against the
+text that was actually sent: the selection and its surrounding paragraphs.
+A quote counts only if it has at least three words. It is verified only if
+those words appear in the sent text in the same order; case, curly versus
+straight quotation marks and extra spaces are ignored. Punctuation at either
+end is trimmed, so only the words would be highlighted. `npm run eval` now
+uses the same file to report how many counted quotes were verified.
+
+**Why.** The card is about to highlight quotes as evidence, and a highlight
+is a claim: "these exact words are on the page". That claim needs one
+definition used everywhere. If the eval measured grounding one way and the
+card highlighted another way, the number would say nothing about what
+readers see. The three-word floor exists because one or two words
+("strategy", "in turn") appear in almost any passage, so finding them proves
+nothing.
+
+**What breaks without it.** The card could highlight a misquote as if it were
+on the page, and the eval's grounding number would describe a different rule
+from the one readers see.
+
+**Interview questions**
+
+*Q: Why load the same file in the extension and in Node, instead of writing
+the logic twice?*
+A: Two copies drift. Someone fixes an edge case in one, and the test keeps
+passing on the other. Writing it as a plain script that attaches itself to
+the global object lets the browser load it as a content script and Node load
+it in a VM, so the tests and the eval exercise the exact code that ships.
+
+*Q: Why ignore case and quotation-mark style but not a changed word?*
+A: Those differences don't change what was said: "Unfair" at the start of a
+quote, or a curly apostrophe in the page against a straight one in the
+answer. A changed word does change what was said, and a misquote presented
+as evidence is worse than no quote at all.
+
+---
+
+## Let Chrome deliver the keyboard shortcut
+
+**What changed.** The service worker now listens for a manifest command,
+`explain-selection`, and passes it to every frame of the active tab. It can
+also tell the content script which shortcut Chrome actually assigned, read
+from `chrome.commands.getAll()`, or an empty string if none is. The command
+itself is declared in the manifest in the next change.
+
+**Why.** Until now the shortcut was a `keydown` listener inside the page. A
+page handles its own keys first, and mail apps and editors routinely stop
+the ones they use, so on those sites ⌘⇧E never reached the extension. In a
+reproduction, a page that captured keys and text inside an iframe both
+failed. A manifest command is handled by Chrome before the page sees the
+key, so a page can't swallow it.
+
+**What breaks without it.** The shortcut works on simple articles and
+silently does nothing on the sites where people read most: mail, documents
+and anything embedded.
+
+**Interview questions**
+
+*Q: Why ask Chrome which shortcut was assigned instead of showing the one in
+the manifest?*
+A: The manifest only suggests keys. Chrome won't assign them if another
+extension already holds them, and the user can change them at
+chrome://extensions/shortcuts. A hint advertising keys that don't work is
+worse than no hint, so the pill shows what Chrome reports, or nothing.
+
+*Q: Why send the command to every frame rather than just the top one?*
+A: The selection can be inside an iframe, and only the frame that holds it
+can read it. Each frame checks whether it has focus and a selection; the one
+that does opens the card, and the rest ignore the message.
+
+---
+
+## Redesign the explanation card, and run in every frame without slowing pages
+
+**What changed.** The card now matches the product film and the store
+listing:
+
+* **Lens.** The current lens is one button that opens a "Change lens" menu,
+  instead of five wrapping chips. The menu works from the keyboard: arrows,
+  Home, End and Escape.
+* **Hierarchy.** The summary is 16px. Below it, each section is a heading
+  you tap to open, and only the first starts open. Which sections are open is
+  remembered per lens while the page stays open.
+* **Evidence.** Quotes are highlighted in yellow only when the shared checker
+  verifies them: three or more words, found word for word in what was sent.
+  Anything else stays plain.
+* **Close and footer.** A ✕ in the corner and Escape both close the card. The
+  footer reads "N left today · Go deeper", with room kept for 👍/👎 later.
+* **Loading and errors.** Loading is a short skeleton instead of a spinner.
+  Errors are a plain heading and sentence with "Try again".
+* **Height.** The card grows to about 70% of the window, then scrolls, and
+  the visible area always ends between sections, never through a heading.
+* **Focus.** Focus moves into the card when it opens and returns when you
+  close it.
+* **Dark mode** follows the page behind the selection, falling back to the
+  system setting.
+
+The content script now runs in every frame, and the manifest declares the
+`explain-selection` command. Text inside iframes and in text fields can be
+explained. Each frame does no DOM work until it actually has a selection.
+
+**Why.** Five chips and an all-open list put the reader's eyes on navigation
+before the answer. Running in every frame fixes iframes, but done naively it
+costs every page with embeds. Measured on a page with 60 iframes, it added
+240 elements up front. Creating nothing until a selection appears keeps that
+at zero.
+
+**What breaks without it.** The card looks unlike the product in the film and
+the store. Quotes can't be trusted at a glance, and text in embedded frames
+can't be explained at all.
+
+**Interview questions**
+
+*Q: Why highlight only verified quotes, and leave the rest plain instead of
+marking them as wrong?*
+A: A highlight is a promise that the words are on the page, so it's given
+only when that's checked. Marking unverified quotes red would claim they're
+false, when many are just paraphrase in quotation marks or too short to
+check. Plain text makes no claim either way.
+
+*Q: Running a script in every iframe sounds expensive. How do you keep it
+cheap?*
+A: Do nothing until needed. Each frame registers three listeners and stops.
+The shadow root, the styles and the reader object are only created when that
+frame has a real selection or is asked to explain one. Chrome still gives
+each frame its own script environment, which costs memory even for an empty
+script, but the page's own DOM is left untouched.
+
+---
+
+## Version 0.3.0
+
+**What changed.** `manifest.json` goes from 0.2.2 to 0.3.0.
+
+**Why.** This release changes what readers see and use: a new card, a
+shortcut handled by Chrome, and support for iframes and text fields. Chrome
+Web Store updates are keyed on the version number, and a minor bump
+signals new behaviour rather than a fix.
+
+**What breaks without it.** The store rejects an upload whose version isn't
+higher than the published one, and anyone reporting a bug can't say which
+card they saw.
+
+**Interview questions**
+
+*Q: Why a separate commit just for the version number?*
+A: So the history shows exactly when the release was cut, and the version
+can be moved or reverted without touching any of the code. It also keeps
+"what changed" and "this is now 0.3.0" as two separate decisions.
+
+*Q: Why 0.3.0 and not 0.2.3?*
+A: The last number is for fixes that don't change behaviour. This release
+adds features and changes the interface, which is what the middle number is
+for. Before 1.0, that's the usual way to signal "noticeably new" without
+promising long-term stability.
+
+---
+
+## Ask the model for schema-shaped JSON, and count how replies parse
+
+**What changed.** Every request to the model now carries a JSON Schema for
+the answer, `summary` then `sections` of `label` and `body`. It's sent as an
+OpenAI-style `response_format` of type `json_schema`. Gemini's
+OpenAI-compatible endpoint supports this ([OpenAI compatibility, structured
+output](https://ai.google.dev/gemini-api/docs/openai)) and turns it into
+constrained decoding: the model can only produce text that is valid JSON of
+that shape ([Structured outputs](https://ai.google.dev/gemini-api/docs/structured-output)).
+If a provider rejects the schema with a 400, the request is sent once more
+without it.
+
+The stray-quote repair stays as a fallback. The server now records how each
+reply parsed (as sent, after mending stray quotes, or not at all) as a daily
+counter in Redis. It's a number only, never text, and expires after 30 days.
+`node scripts/parse-stats.mjs` prints the counts.
+
+**Why.** The repair fixes the symptom after the fact. The schema stops the
+broken JSON being written at all. Measured on 20 real requests each, with the
+product's own prompts:
+
+| | Parsed as sent | Needed quotes mended | Unreadable |
+| --- | --- | --- | --- |
+| Without the schema | 18 | 2 | 0 |
+| With the schema | 20 | 0 | 0 |
+
+The counter is how we'll know the rate in production instead of guessing.
+
+**What breaks without it.** About one reply in ten depends on a repair
+heuristic. And nothing would tell us if a model update made it worse.
+
+**Interview questions**
+
+*Q: If the schema guarantees valid JSON, why keep the repair?*
+A: Because the guarantee depends on the provider and the model. A fallback
+path without the schema, a different model behind the same setting, or a
+future API change could bring the old failure back. The repair is cheap,
+only runs when parsing fails, and now its use is counted, so if it starts
+firing again we'll see the number move.
+
+*Q: Why count parse outcomes rather than log the failing replies?*
+A: The replies contain what people were reading, and the privacy policy
+promises that's never stored. A count answers the question that matters, how
+often parsing goes wrong, without keeping anything a reader selected.
+
+---
+
+## Fix the irony-swift check, and report evidence as counts
+
+**What changed.** Three changes to `scripts/eval.mjs`:
+
+* **irony-swift.** The check no longer fails an answer that says the writer
+  "does not actually advocate" the proposal. A negation in the three words
+  before the phrase means it isn't the misreading. Each case can now carry
+  examples its check must allow and must catch, and the eval verifies them
+  before making any request.
+* **Counts, not percentages.** Verified quotes are reported as "25 of 26".
+* **Same request as the product.** The eval sends the same response schema
+  the server does, and reports how replies parsed. `--no-schema` sends the
+  old request, for comparison.
+
+**Why.** The old irony check marked a correct answer wrong. Correct readings
+of irony often say what the writer does *not* mean, so the check punished
+exactly the answer it should reward. The full record is in
+`docs/eval-findings.md`. Percentages on two dozen quotes suggest a precision
+the sample doesn't have: one quote moves the number by four points. And an
+eval that doesn't send what the product sends measures something else.
+
+**What breaks without it.** A false failure trains everyone to ignore the
+eval. A percentage invites reading noise as a trend.
+
+**Interview questions**
+
+*Q: How is this different from loosening a test to make it pass?*
+A: Loosening would let real misreadings through. This keeps every
+misreading the old pattern caught, and the eval now proves it on every run
+with examples that must still be caught, while no longer catching the
+negated phrasing of a correct answer. The test was wrong, not the model.
+
+*Q: Why test the test?*
+A: A check written as a regular expression is code too, and it can be wrong
+in either direction without anyone noticing. A few labelled examples, run
+before the expensive part, make a broken check fail loudly and immediately,
+instead of quietly producing a wrong score.
+
+---
+
+## Stream answers from the server as structured events
+
+**What changed.** When a request includes `"stream": true`, `/api/explain`
+answers with newline-delimited JSON events instead of one JSON reply:
+
+* `start`: the lens, depth and allowance, sent at once
+* `summary`: summary text, in pieces as the model writes it
+* `section`: a new section begins, with its label
+* `delta`: that section's body, in pieces
+* `done`: the whole answer, parsed properly
+* `error`: what went wrong, and whether some text had already arrived
+* `wait`: every ten seconds while nothing else is being sent
+
+Underneath, the server asks the model to stream (`stream: true`, still with
+the response schema). `src/lib/stream.ts` reads the model's server-sent
+events and, as the JSON arrives, works out whether each piece of text
+belongs to the summary, a label or a body. Requests without `"stream"` get
+the old single reply, so 0.2.2 and the eval keep working.
+
+Two safety rules come with it:
+
+* **Stalls.** If the model sends no text for 12 seconds (45 seconds before
+  the first words in deep mode, because a reasoning model writes nothing
+  while it thinks), the request is aborted. If nothing had reached the
+  reader yet, it's retried once, invisibly. If words had already been shown,
+  it ends with "Answer cut off. Try again." instead, because a retry would
+  replace them.
+* **Charged once.** The allowance is charged before the stream starts,
+  exactly as before, so streaming can't bypass it. The client also sends a
+  request id. A retry with the same id within two minutes isn't charged
+  again, on the server or in the extension.
+
+**Why.** A fast answer takes about two seconds, and a deep one ten or more.
+Showing the first words as soon as they exist makes the wait feel shorter
+and shows the reader that something is happening.
+
+**SSE versus WebSockets.** Streaming here goes one way, server to reader,
+for a few seconds, once per question. A normal HTTP response whose body
+arrives in pieces does exactly that. It works through the same `fetch`, the
+same CORS rules, the same quota check and the same Vercel edge function. A
+WebSocket is a two-way connection that stays open. That's useful for chat
+or live collaboration, but here it would mean a separate protocol, a
+connection to manage and nothing gained, since the reader never needs to
+send anything mid-answer. The model's own stream uses server-sent events
+(`data:` lines). Ours uses one JSON object per line, the same idea in an
+even simpler format.
+
+**Why structured events instead of passing on partial JSON.** The model's
+reply is one JSON document, and a half-finished JSON document can't be
+parsed. Forwarding raw fragments would make every client rebuild a JSON
+parser that tolerates incomplete input, and get escapes split across chunks
+right. The server does that once, in one tested place, and sends events the
+card can apply directly: add this text to the summary, start a section with
+this label. The `done` event still carries the properly parsed answer, so
+the streamed text is a preview and the final version is authoritative.
+
+**What breaks without it.** Readers stare at a skeleton for the whole answer.
+A provider stall leaves the card waiting until a 45-second timeout. And a
+reader who taps Try again after a failure pays twice.
+
+**Interview questions**
+
+*Q: How do you stop a retry after a failure from being charged twice?*
+A: The client makes a random id for each request and sends it with any
+retry of that request. The server remembers the id for two minutes with a
+Redis `SET NX`, which only succeeds the first time. If it's already there,
+the request is let through at a cost of zero. The id is scoped to the
+install, so it can't be used to dodge someone else's limit.
+
+*Q: Why retry a stall only if nothing has been shown yet?*
+A: A retry starts the answer from scratch, and the model may well say it
+differently the second time. If the reader has already seen half of the
+first version, silently swapping in a different one would be confusing. So
+the system is honest instead: it keeps what arrived, says it was cut off,
+and offers a free retry.
+
+---
+
+## Stream answers into the card over a port
+
+**What changed.** The card now opens a long-lived connection to the service
+worker, `chrome.runtime.connect({ name: 'explain' })`, and sends one request.
+The worker reads the server's event stream and posts each event back as it
+arrives. The card shows the skeleton until the first words, then fills the
+summary in word by word, then each section. When a section is complete, its
+verified quotes are highlighted. When `done` arrives, the card redraws once
+from the final answer, in the same task, so nothing flickers. Closing the
+card disconnects the port, and the worker aborts the download.
+
+The card never jumps. Its position is decided once, for the tallest it can
+get (about 70% of the window). Below the selection, it simply grows
+downward. Above, the full height is reserved up front, because a card that
+grew upward would push the words already on screen. While text is arriving,
+the visible area doesn't snap to section boundaries; it does that once, at
+the end. On a real article, the card's top, the summary and the first heading
+moved zero times during streaming.
+
+If the answer is cut off, what arrived stays on screen with "Answer cut off.
+Try again." The retry reuses the request id, so it's free.
+
+**The MV3 service worker and port lifetime.** An extension's background
+script is a service worker, and Chrome stops one after 30 seconds without
+activity. In Chrome's words, "receiving an event or calling an extension API
+resets this timer", and "sending a message with long-lived messaging keeps
+the service worker alive", though "opening a port no longer resets the
+timers" ([The extension service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle)).
+So an open port alone isn't enough; messages have to flow. While an answer
+streams, every event posted to the port counts. Before the first word, a deep
+read can think for longer than 30 seconds, which is why the server sends a
+`wait` event every ten seconds and the worker forwards it.
+
+**What breaks without it.** Streaming would only reach the worker, not the
+card. And without the keep-alive, Chrome could stop the worker in the middle
+of a slow deep answer, leaving the card waiting for words that never come.
+
+**Interview questions**
+
+*Q: Why a port instead of `sendMessage` for this?*
+A: `sendMessage` gets exactly one reply, and an answer that streams is many
+messages over several seconds. A port is a two-way channel that stays open
+until either side disconnects. That also gives cancellation for free: closing
+the card disconnects the port, and the worker aborts the request instead of
+downloading an answer nobody will see.
+
+*Q: How do you make text appear word by word without the layout jumping?*
+A: Decide where the card goes once, using the biggest size it can reach, so
+growth never forces it to move. Grow only downward, and reserve the full
+height when the card has to sit above the selection. Append text instead of
+re-rendering. When the final answer arrives, swap it in within a single task,
+so the browser never paints the halfway state. Then measure it: sample the
+positions of what's already on screen while text streams, and check that
+none of them changes.
+
+---
+
+## Cap deep reads per day, and never charge for a request the provider refuses
+
+**What changed.** Three things on the server:
+
+* **A daily cap on deep reads, across everyone.** It's set by
+  `DEEP_DAILY_CAP` and defaults to 15. Each deep request takes a slot from a
+  Redis counter before the reader is charged anything. When the slots are
+  gone, the API answers `503` with `code: "deep_resting"` and the time it
+  resets, and the reader's allowance is untouched. A reader refused for their
+  own limit gives their slot back.
+* **The provider's own refusals are free.** If the model provider answers
+  `429`, the reader's charge is refunded: install, address and global
+  counters, and the request id is forgotten. The reply says so plainly. A
+  per-day quota error (Gemini names it `…PerDay…`) is told apart from a
+  momentary rate limit. For the deep model, a per-day error closes deep reads
+  for the rest of the day, in case the cap was set too high.
+* **Charges are recorded.** `spend` now reports what a request actually
+  cost, so a refund gives back exactly that: nothing for a repeat that was
+  already free.
+
+**Why.** The deep model's free tier allows about 20 requests a day for the
+whole Google project. Each reader's allowance allows up to 10 deep reads, so
+a handful of readers can use up the deep model for everyone. Without a cap,
+the provider simply starts failing. And until now a reader was charged even
+when the provider refused, for an answer they never got.
+
+**What breaks without it.** Go deeper fails unpredictably for everyone once
+the provider's quota is gone, and readers lose allowance to those failures.
+
+**Interview questions**
+
+*Q: Why check the cap before charging the reader, rather than after?*
+A: Because a refusal must cost nothing, and the cheapest refund is the one
+you never have to make. Taking a slot first and charging second means a
+refused deep read touches only the deep counter. In the rarer case where the
+slot is taken and the reader is then refused for their own limit, the slot
+is given back, so the counter stays equal to deep reads actually served.
+
+*Q: Why distinguish a per-day quota error from a per-minute one?*
+A: They need opposite advice. A per-minute limit clears in seconds, so the
+honest message is "try again in a minute". A per-day limit won't clear until
+tomorrow, so telling people to retry would only frustrate them. It's also
+the signal to stop sending deep requests to the provider at all for the rest
+of the day.
+
+---
+
+## Show "Go deeper is resting until tomorrow", and refund it locally
+
+**What changed.** When a deep read is refused, the card goes back to the
+answer the reader already had. Its Go deeper button is disabled and reads
+"Go deeper is resting until tomorrow". The service worker gives back the
+three explanations it had counted on this device, and tells the card the
+corrected number so the footer never shows the charge. It also remembers the
+resting state until the reset time, so the next deep read is answered at
+once, without a request or a charge. Refusals the server explains are never
+retried, and other refusals the provider makes (busy, or out for the day)
+are refunded the same way.
+
+**Why.** A refusal that silently costs three explanations, or replaces a
+good answer with an error, punishes the reader for a limit they didn't
+choose. Keeping their answer and saying plainly what's unavailable is both
+kinder and more honest.
+
+**What breaks without it.** Tapping Go deeper on a busy day would erase the
+answer on screen, show an error and spend three of the reader's daily
+explanations for nothing.
+
+**Interview questions**
+
+*Q: The server already refunds. Why does the extension refund too?*
+A: There are two counters. The server's is the one that's enforced. The
+extension keeps its own on the device, so it can show "29 left today"
+without asking the server. Both were charged, so both have to be given back,
+or the footer would show three fewer than the reader really has.
+
+*Q: Why remember the resting state on the device instead of asking each
+time?*
+A: Once the server has said deep reads are closed until a given time,
+asking again before then can only get the same answer. Answering locally is
+instant, doesn't spend a request on either side, and the stored time means
+it reopens by itself after the reset.
+
+---
+
+## Keep test runs off the production key
+
+**What changed.** `scripts/key-guard.mjs` compares the key a script is about
+to use with `PROD_KEY_HASH`, the SHA-256 of the production key, and prints a
+loud warning if they match. Only the hash is ever configured; the key itself
+is never printed or stored. The eval uses it, and now skips the deep cases
+unless `--include-deep` is passed. `scripts/timing.mjs`, which measures time
+to first words and total time, streaming and not, also checks the key the
+local server will use, and runs deep timings only with `--include-deep`.
+
+**Why.** One afternoon of evals and timing runs used up the deep model's
+whole daily quota for the project. When that project's key is also the
+production key, every reader's Go deeper stops working. Testing now uses a
+separate Google AI Studio project, and this makes it hard to get wrong
+silently.
+
+**What breaks without it.** A routine test run takes Go deeper away from
+real readers for the rest of the day, and nothing says why.
+
+**Interview questions**
+
+*Q: Why compare a hash instead of the key itself?*
+A: So the production key never has to be on the developer's machine at all.
+A hash can sit in a local config file safely: it can't be turned back into
+the key, but it's enough to recognise the key if someone pastes it in by
+mistake.
+
+*Q: Why make deep cases opt-in rather than just warning?*
+A: Because the cost is shared and scarce. A fast case is cheap, so the
+default run covers everything fast. A deep case spends one of about twenty
+daily requests for the whole project. Making it opt-in means spending that
+quota is always a deliberate choice, not a side effect of running the
+default command.
+
+---
+
+## Count the deep cap on Google's day, and show the reset in the reader's time
+
+**What changed.** The deep cap now counts days the way Google does: from
+midnight Pacific time. Its Redis key is the Pacific date, for example
+`cr:deep:2026-11-05`. The reset time comes from `America/Los_Angeles`
+through `Intl`, so winter (PST, UTC−8) and summer (PDT, UTC−7) are both
+right, including the nights the clocks change. The reader's own allowance
+stays on its own day.
+
+Every deep refusal now carries the reset time. The card turns it into the
+reader's local time: "Go deeper is resting until 1:30 PM", "until tomorrow,
+1:30 PM", or a weekday if further off.
+
+**Why.** Gemini's per-day quotas reset at midnight Pacific. A cap counted on
+any other day would be out of step with the provider for part of every day:
+it would open fresh slots while Google still counted the old day as spent, or
+stay closed after Google had reset. "Until tomorrow" was also wrong for most
+readers: for someone in India the reset is early afternoon on the same day.
+
+**What breaks without it.** For part of each day Go deeper would say it's
+available and then fail, or say it's resting when it isn't. And readers
+would be told to wait until tomorrow for something back at lunchtime.
+
+**Interview questions**
+
+*Q: Why not just add eight hours to UTC to get Pacific time?*
+A: Because Pacific time is UTC−8 only in winter. From March to November it's
+UTC−7, and the switch happens at 2am on dates that move each year. Hard-coding
+an offset is wrong for half the year. Asking `Intl` for the time in
+`America/Los_Angeles` uses the time-zone database, which knows when the
+clocks change. The tests check midnight on both sides in both seasons, and
+on both nights the clocks change.
+
+*Q: Why do the deep cap and the reader's allowance use different days?*
+A: They limit different things. The deep cap mirrors the provider's quota,
+so it has to reset when the provider does. The reader's allowance is a
+promise to the reader ("resets at midnight"), so it follows their day. Using
+one clock for both would make one of them wrong.
+
+---
+
+## Call it Go deeper everywhere, and say when it's back
+
+**What changed.** After a deep answer, the button used to change its label
+to "Read closely". It now stays "Go deeper", disabled, with a tooltip saying
+the answer already used it. The extension's messages, the README and the
+store description say "Go deeper" instead of "a deep read" or "the deep
+pass". When Go deeper is resting, the card shows the reset time in the
+reader's local time. The README and the store text now say plainly that Go
+deeper doesn't always catch subtle effects, and that it can be resting on
+busy days.
+
+**Why.** One feature with three names (Go deeper, Read closely, deep read)
+makes people wonder whether those are three different things. The button is
+what people see first, so its name is the one everything else uses. The
+honesty changes keep the description in line with the eval: on the
+line-break case, Go deeper succeeds about one time in three.
+
+**What breaks without it.** A reader sees "Read closely" and looks for a new
+feature. And the store promises catches Go deeper makes only sometimes.
+
+**Interview questions**
+
+*Q: Is renaming one label worth a commit?*
+A: Consistency in names is part of the interface. When the same action is
+called different things in different places, people assume they're
+different actions and lose trust when they turn out to be the same. It costs
+a few lines to fix and saves confusion for everyone who reads the store
+page, the card and the help text.
+
+*Q: Why keep the button visible but disabled, rather than hiding it?*
+A: Hiding it would make it look like the feature vanished. A disabled button
+with its usual name, and a tooltip saying why, tells the reader what exists,
+that they've already used it, or when it's back, without making them hunt.
+
+---
+
+## A script to check the live API after a deploy
+
+**What changed.** `node scripts/verify-live.mjs [base-url]` runs five checks
+against the live API, as a fresh `test-` install, and prints pass or fail for
+each:
+
+* **(a)** the single-reply request that 0.2.2 sends still works
+* **(b)** streaming sends `start`, summary text, sections and `done`, and
+  charges once
+* **(c)** a deep request costs the reader three and takes a deep-cap slot. It
+  prints the Redis key to look for in Upstash, `cr:deep:<Pacific date>`, and
+  reads it before and after if the Upstash variables are set
+* **(d)** refused requests cost nothing
+* **(e)** CORS turns away a foreign origin and allows the extension
+
+It sends 3 fast requests, 1 deep, 1 malformed and 2 preflights, and exits
+non-zero if anything fails.
+
+**Why.** The new behaviour (streaming, the deep cap, refunds) only fully
+works with production's Redis and keys, so it can't be fully proven before
+the deploy. A short, repeatable check right after the deploy catches a
+broken release before readers do, without spending more than one deep
+request.
+
+**What breaks without it.** A deploy that breaks 0.2.2 users, or charges for
+refusals, would be noticed only when readers complain.
+
+**Interview questions**
+
+*Q: Why verify through the public API instead of reading the database?*
+A: Because what matters is what clients experience. The API's own replies
+report the remaining allowance, so the script can see exactly what a reader
+was charged without any special access. Reading Redis is an optional extra,
+read-only, for the one thing the API doesn't expose, the deep cap counter.
+
+*Q: How do you keep a production check from doing harm?*
+A: Use a throwaway identity, so it only ever spends its own allowance.
+Send the fewest requests that prove each point. Never write to production
+state; the Redis access is read-only. And skip with an explanation, rather
+than force, anything that can't be shown safely, like a deep refusal when
+the cap isn't full.
+
+---
+
+## Show when the allowance really resets, instead of "midnight"
+
+**What changed.** Every answer from the server says when its day ends
+(`quota.resetAt`, also sent as `X-Quota-Reset`). The extension now keeps
+its own count on that same window, and shows the time in the reader's local
+time:
+
+* **Card footer:** "29 left today · resets at 18:30", or "resets tomorrow
+  at 0:00"
+* **Popup:** "29 of 30 explanations left today, resets at 18:30"
+* **Over-limit messages:** "Resets at 18:30."
+
+Until the first answer arrives there's no time to show, so nothing claims
+one. When Go deeper is resting too, its note moves to its own line under the
+count, so the footer doesn't wrap into a jumble.
+
+**Why.** The server counts the allowance on one fixed day, India's midnight
+by default, but the extension said "resets at midnight", meaning the
+reader's own. For anyone outside India that was wrong by hours. Showing the
+real time, in their clock, is honest now, and a per-reader midnight can come
+later (planned for 0.4).
+
+**What breaks without it.** A reader in London is told the allowance resets
+at midnight, finds it's still empty at 00:05, and reasonably thinks the
+extension is broken.
+
+**Interview questions**
+
+*Q: Why move the device's count onto the server's window instead of keeping
+it on the local date?*
+A: Two counters with different days drift apart. The device would show 30
+left at local midnight while the server still refused until India's
+midnight. Following the time the server reports keeps the number on screen
+and the number enforced in step.
+
+*Q: Why not just convert "midnight in India" to local time in the
+extension?*
+A: That would bake the server's setting into the client. The server's day
+is configurable (`QUOTA_DAY_OFFSET_MINUTES`) and may change, for example to
+per-reader days in 0.4. Using the reset time the server actually sends means
+the extension is right whatever the server decides.

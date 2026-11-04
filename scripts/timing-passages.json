@@ -1,0 +1,35 @@
+[
+ {
+  "title": "Marbury v. Madison - Wikipedia",
+  "url": "https://en.wikipedia.org/wiki/Marbury_v._Madison",
+  "selection": "On February 24, 1803, the Supreme Court issued a unanimous 4–0 decision against Marbury. The court's opinion was written by Chief Justice John Marshall, who structured the court's opinion around a series of three questions it answered in turn:",
+  "markedParagraph": "«On February 24, 1803, the Supreme Court issued a unanimous 4–0 decision against Marbury. The court's opinion was written by Chief Justice John Marshall, who structured the court's opinion around a series of three questions it answered in turn:»"
+ },
+ {
+  "title": "US midterms 2026",
+  "url": "https://www.bbc.com/news/articles/x",
+  "selection": "According to the latest public opinion surveys, Democrats appear to have the upper hand - but polls haven't always been reliable, and this year could have its own share of surprising results.",
+  "markedParagraph": "«According to the latest public opinion surveys, Democrats appear to have the upper hand - but polls haven't always been reliable, and this year could have its own share of surprising results.»",
+  "precedingParagraph": "After months of campaigning and billions of dollars spent on the US midterms, election day is finally here."
+ },
+ {
+  "title": "A plan for last summer",
+  "url": "https://example.org/opinion/editorial/a",
+  "selection": "It would not be unfair to say that a plan announced in June, for a heatwave that began in April, is less a strategy than an apology written in advance.",
+  "markedParagraph": "The new heat action plan is, on paper, admirable. «It would not be unfair to say that a plan announced in June, for a heatwave that began in April, is less a strategy than an apology written in advance.» The question is whether anyone will still be reading it by next summer.",
+  "precedingParagraph": "For three summers running, the city has promised cooler streets and delivered press releases instead."
+ },
+ {
+  "title": "A Modest Proposal",
+  "url": "https://www.gutenberg.org/files/1080/1080-h/1080-h.htm",
+  "selection": "A young healthy child well nursed is at a year old a most delicious, nourishing, and wholesome food.",
+  "markedParagraph": "I have been assured by a very knowing American of my acquaintance in London, that «a young healthy child well nursed is at a year old a most delicious, nourishing, and wholesome food», whether stewed, roasted, baked, or boiled.",
+  "mode": "point"
+ },
+ {
+  "title": "Sonnet 73",
+  "url": "https://example.org/poems/sonnet-73",
+  "selection": "That time of year thou mayst in me behold\nWhen yellow leaves, or none, or few, do hang\nUpon those boughs which shake against the cold,\nBare ruin'd choirs, where late the sweet birds sang.",
+  "markedParagraph": "«That time of year thou mayst in me behold\nWhen yellow leaves, or none, or few, do hang\nUpon those boughs which shake against the cold,\nBare ruin'd choirs, where late the sweet birds sang.»"
+ }
+]

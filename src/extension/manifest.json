@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ContextReader",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Select a dense passage and get what the writer actually means - in context, without leaving the page.",
   "permissions": [
     "storage",
@@ -19,12 +19,22 @@
         "<all_urls>"
       ],
       "js": [
+        "quotes.js",
         "content.js"
       ],
       "run_at": "document_idle",
-      "all_frames": false
+      "all_frames": true
     }
   ],
+  "commands": {
+    "explain-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
+      },
+      "description": "Explain the selected text"
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

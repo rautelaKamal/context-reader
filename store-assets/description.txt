@@ -37,9 +37,13 @@ with a single tap.
 
 GO DEEPER
 
-Answers arrive in about two seconds. When that is not enough, Go deeper hands
-the same passage to a slower, more careful model — the one that notices a word
-held at a line break so it reads two ways.
+Most answers arrive in a couple of seconds. If one feels thin, Go deeper asks a
+slower model to read the passage again. It takes longer, usually several
+seconds and sometimes up to half a minute, and uses three of your daily
+explanations. It often adds detail the quick answer missed, but not always.
+Subtle effects, like a line break that changes how a phrase reads, it catches
+only some of the time. Go deeper runs on a small daily quota shared by
+everyone, so on busy days it may be resting until the quota resets.
 
 IT DOES NOT INTERRUPT
 
@@ -54,7 +58,7 @@ level. Anyone who has re-read the same sentence four times.
 
 FREE, WITH A DAILY ALLOWANCE
 
-30 explanations a day, resetting at midnight; a deep read uses three. The
+30 explanations a day, resetting at midnight; Go deeper uses three. The
 allowance exists because the service runs on a shared free quota — it keeps the
 extension working for everyone rather than letting one long session exhaust it.
 
