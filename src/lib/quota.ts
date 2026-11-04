@@ -25,6 +25,8 @@ export interface Limits {
 }
 
 export interface QuotaDecision {
+  /** What this request actually cost: 0 for a repeat of one already charged, or when nothing was counted. */
+  charged?: number;
   ok: boolean;
   /** Of this install's daily allowance. */
   remaining: number;
@@ -117,10 +119,11 @@ export async function spend(
   const keys = [installKey, ipKey, globalKey].filter((k): k is string => k !== null);
 
   let totals: number[];
+  let charge = 0;
   try {
     // A repeat of a request already charged costs nothing; the counters are
     // still read, so the reply carries the true remaining allowance.
-    let charge = cost;
+    charge = cost;
     if (requestId) {
       const owner = installId ?? ip;
       const repeatKey = `cr:r:${await hashed(`${owner}:${requestId}`)}`;
@@ -153,7 +156,7 @@ export async function spend(
   else if (installKey && installUsed > limits.perInstall) reason = 'install';
   else if (used[ipKey] > limits.perIp) reason = 'ip';
 
-  return { ok: !reason, remaining, resetAt, reason, enforced: true };
+  return { ok: !reason, remaining, resetAt, reason, enforced: true, charged: charge };
 }
 
 /** The live Upstash pipeline, or null when the store is not configured. */
@@ -210,4 +213,69 @@ export async function countParse(
   } catch {
     // Counting is best effort.
   }
+}
+
+/**
+ * A ceiling on deep reads across everyone, per day. The deep model's free tier
+ * allows only a few requests a day for the whole project, far fewer than the
+ * readers' own allowances add up to, so this stops the service promising deep
+ * reads the provider will refuse. Checked before the reader is charged.
+ */
+export function deepCapFromEnv(): number {
+  const n = Number(process.env.DEEP_DAILY_CAP);
+  return Number.isFinite(n) && n >= 0 ? n : 15;
+}
+
+export async function reserveDeep(
+  pipeline: Pipeline | null, cap: number, offsetMinutes: number, now = Date.now(),
+): Promise<{ ok: boolean; resetAt: number }> {
+  const { key: day, resetAt } = dayWindow(offsetMinutes, now);
+  if (!pipeline) return { ok: true, resetAt };
+  const key = `cr:deep:${day}`;
+  try {
+    const [count] = await pipeline([['INCR', key], ['EXPIRE', key, 172_800]]);
+    if (Number(count) <= cap) return { ok: true, resetAt };
+    // Over the cap: give the slot back, so the count stays the number served.
+    await pipeline([['DECR', key]]);
+    return { ok: false, resetAt };
+  } catch {
+    return { ok: true, resetAt };
+  }
+}
+
+/** The provider said its deep quota is spent: refuse further deep reads until tomorrow. */
+export async function closeDeepForToday(
+  pipeline: Pipeline | null, cap: number, offsetMinutes: number, now = Date.now(),
+): Promise<void> {
+  if (!pipeline) return;
+  const key = `cr:deep:${dayWindow(offsetMinutes, now).key}`;
+  try { await pipeline([['SET', key, cap + 1, 'EX', 172_800]]); } catch { /* best effort */ }
+}
+
+/** Give back a deep slot that was reserved but never used, because the reader was refused. */
+export async function releaseDeep(pipeline: Pipeline | null, offsetMinutes: number, now = Date.now()): Promise<void> {
+  if (!pipeline) return;
+  try { await pipeline([['DECR', `cr:deep:${dayWindow(offsetMinutes, now).key}`]]); } catch { /* best effort */ }
+}
+
+/**
+ * Undo a charge: the request was refused by the provider, so it didn't cost the
+ * reader anything. The request id is forgotten too, so a retry is charged
+ * normally if it does get through.
+ */
+export async function refund(
+  pipeline: Pipeline | null,
+  { installId, ip, cost, limits, requestId = null, now }:
+  { installId: string | null; ip: string; cost: number; limits: Limits; requestId?: string | null; now?: number },
+): Promise<void> {
+  if (!pipeline) return;
+  const { key: day } = dayWindow(limits.dayOffsetMinutes, now);
+  const keys = [
+    installId ? `cr:i:${await hashed(installId)}:${day}` : null,
+    `cr:p:${await hashed(ip)}:${day}`,
+    `cr:g:${day}`,
+  ].filter((k): k is string => k !== null);
+  const commands: (string | number)[][] = keys.map((k) => ['DECRBY', k, cost]);
+  if (requestId) commands.push(['DEL', `cr:r:${await hashed(`${installId ?? ip}:${requestId}`)}`]);
+  try { await pipeline(commands); } catch { /* best effort */ }
 }

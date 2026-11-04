@@ -287,3 +287,78 @@ test('a retry with the same request id is not charged twice', async (t) => {
     assert.equal(elsewhere.remaining, 29);
   });
 });
+
+test('deep daily cap and refunds', async (t) => {
+  const { reserveDeep, releaseDeep, closeDeepForToday, refund, deepCapFromEnv } = require('../.test-build/quota');
+  /** A fake Redis with the commands these use. */
+  function redis(seed = {}) {
+    const store = { ...seed };
+    const pipeline = async (commands) => commands.map(([verb, key, arg, flag]) => {
+      if (verb === 'INCR') return (store[key] = (Number(store[key]) || 0) + 1);
+      if (verb === 'INCRBY') return (store[key] = (Number(store[key]) || 0) + Number(arg));
+      if (verb === 'DECR') return (store[key] = (Number(store[key]) || 0) - 1);
+      if (verb === 'DECRBY') return (store[key] = (Number(store[key]) || 0) - Number(arg));
+      if (verb === 'EXPIRE') return 1;
+      if (verb === 'DEL') { const had = key in store; delete store[key]; return had ? 1 : 0; }
+      if (verb === 'SET') { if (flag === 'NX' && key in store) return null; store[key] = String(arg); return 'OK'; }
+      throw new Error(`unexpected ${verb}`);
+    });
+    return { store, pipeline };
+  }
+
+  await t.test('the cap defaults to 15 and reads DEEP_DAILY_CAP', () => {
+    delete process.env.DEEP_DAILY_CAP;
+    assert.equal(deepCapFromEnv(), 15);
+    process.env.DEEP_DAILY_CAP = '4';
+    assert.equal(deepCapFromEnv(), 4);
+    delete process.env.DEEP_DAILY_CAP;
+  });
+
+  await t.test('deep reads are allowed up to the cap, then refused, and a refusal takes no slot', async () => {
+    const r = redis();
+    const results = [];
+    for (let i = 0; i < 4; i++) results.push((await reserveDeep(r.pipeline, 3, 0, 0)).ok);
+    assert.deepEqual(results, [true, true, true, false]);
+    assert.equal(r.store['cr:deep:0'], 3, 'still three served');
+  });
+
+  await t.test('a slot reserved for a reader who was then refused is given back', async () => {
+    const r = redis();
+    await reserveDeep(r.pipeline, 3, 0, 0);
+    await releaseDeep(r.pipeline, 0, 0);
+    assert.equal(r.store['cr:deep:0'], 0);
+  });
+
+  await t.test('when the provider says its daily quota is spent, deep reads close for the day', async () => {
+    const r = redis();
+    await closeDeepForToday(r.pipeline, 15, 0, 0);
+    assert.equal((await reserveDeep(r.pipeline, 15, 0, 0)).ok, false);
+  });
+
+  await t.test('a refused request is refunded in full, and its id forgotten', async () => {
+    const r = redis();
+    const base = { installId: 'install-1', ip: '1.2.3.4', limits: LIMITS, now: 0, requestId: 'req-x' };
+    // Charge through spend with SET support, then refund.
+    const charged = await spend(r.pipeline, { ...base, cost: 3 });
+    assert.equal(charged.charged, 3);
+    await refund(r.pipeline, { ...base, cost: charged.charged });
+    const counters = Object.entries(r.store).filter(([k]) => /^cr:[ipg]:/.test(k)).map(([, v]) => v);
+    assert.deepEqual(counters, [0, 0, 0]);
+    assert.equal(Object.keys(r.store).some((k) => k.startsWith('cr:r:')), false);
+  });
+
+  await t.test('a repeat request charged nothing, so refunding it gives back nothing', async () => {
+    const r = redis();
+    const base = { installId: 'install-1', ip: '1.2.3.4', limits: LIMITS, now: 0, requestId: 'req-y' };
+    await spend(r.pipeline, { ...base, cost: 1 });
+    const repeat = await spend(r.pipeline, { ...base, cost: 1 });
+    assert.equal(repeat.charged, 0);
+  });
+});
+
+test('daily quota errors are told apart from momentary ones', () => {
+  const { isDailyQuota } = require('../.test-build/provider');
+  assert.equal(isDailyQuota(429, '{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}'), true);
+  assert.equal(isDailyQuota(429, '{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}'), false);
+  assert.equal(isDailyQuota(503, 'PerDay'), false);
+});

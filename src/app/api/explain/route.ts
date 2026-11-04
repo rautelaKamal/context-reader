@@ -8,7 +8,8 @@ import type { ExplainResult } from '@/lib/ai';
 import type { ParseOutcome } from '@/lib/prompts';
 import type { StreamEvent } from '@/lib/stream';
 import {
-  clientIp, COST, countParse, limitsFromEnv, quotaHeaders, refusalMessage, spend, upstashPipeline,
+  clientIp, closeDeepForToday, COST, countParse, deepCapFromEnv, limitsFromEnv, quotaHeaders, refund,
+  refusalMessage, releaseDeep, reserveDeep, spend, upstashPipeline,
 } from '@/lib/quota';
 
 export const runtime = 'edge';
@@ -44,15 +45,28 @@ export async function POST(request: Request) {
   // is rejected above without spending anything.
   const depth = (body as Record<string, unknown>).depth === 'deep' ? 'deep' : 'fast';
 
-  const quota = await spend(upstashPipeline(), {
+  const pipeline = upstashPipeline();
+  const limits = limitsFromEnv();
+  const deepCap = deepCapFromEnv();
+
+  // The deep model's daily quota is shared by everyone and small, so a deep
+  // read checks for a slot first, before the reader is charged anything.
+  if (depth === 'deep') {
+    const slot = await reserveDeep(pipeline, deepCap, limits.dayOffsetMinutes);
+    if (!slot.ok) return restingResponse('deep_resting', slot.resetAt, headers);
+  }
+
+  const charge = {
     installId: request.headers.get('x-install-id'),
     ip: clientIp(request),
     cost: COST[depth],
-    limits: limitsFromEnv(),
+    limits,
     requestId: requestIdFrom(request),
-  });
+  };
+  const quota = await spend(pipeline, charge);
 
   if (!quota.ok) {
+    if (depth === 'deep') await releaseDeep(pipeline, limits.dayOffsetMinutes);
     return NextResponse.json(
       { error: refusalMessage(quota), quota: { remaining: 0, resetAt: quota.resetAt } },
       {
@@ -66,6 +80,21 @@ export async function POST(request: Request) {
     );
   }
 
+  /**
+   * The provider refused (429): the reader got nothing, so they pay nothing.
+   * A deep model out of daily quota closes deep reads for the rest of the day.
+   */
+  const refusedByProvider = async (error: ProviderError): Promise<Refusal> => {
+    await refund(pipeline, { ...charge, cost: quota.charged ?? 0 });
+    if (depth === 'deep') {
+      if (error.daily) await closeDeepForToday(pipeline, deepCap, limits.dayOffsetMinutes);
+      return { code: 'deep_resting', message: RESTING.deep_resting, refunded: true };
+    }
+    return error.daily
+      ? { code: 'service_resting', message: RESTING.service_resting, refunded: true }
+      : { code: 'busy', message: 'The model is busy right now. Try again in a minute. This one was not counted.', refunded: true };
+  };
+
   try {
     const context = parseContext(body);
     const requested = (body as Record<string, unknown>).mode;
@@ -73,7 +102,6 @@ export async function POST(request: Request) {
       ? requested
       : detectMode({ selection: context.selection, url: context.url });
 
-    const limits = limitsFromEnv();
     const modes = applicableModes({ selection: context.selection, url: context.url })
       .map((id) => MODES[id]);
     const quotaInfo = { remaining: quota.remaining, resetAt: quota.resetAt };
@@ -84,6 +112,7 @@ export async function POST(request: Request) {
         (emit, onParse) => explainStream(context, mode, depth, emit, onParse),
         { mode, depth, modes, quota: quotaInfo },
         limits.dayOffsetMinutes,
+        refusedByProvider,
         { ...headers, ...quotaHeaders(quota) },
       );
     }
@@ -91,7 +120,7 @@ export async function POST(request: Request) {
     let parse: Promise<void> = Promise.resolve();
     const result = await explain(context, mode, depth, (outcome) => {
       if (outcome !== 'clean') console.warn(`parse outcome: ${outcome}`);
-      parse = countParse(upstashPipeline(), outcome, limits.dayOffsetMinutes);
+      parse = countParse(pipeline, outcome, limits.dayOffsetMinutes);
     });
     await parse;
 
@@ -105,16 +134,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400, headers });
     }
     if (error instanceof ProviderError) {
-      const status = error.status === 429 ? 429 : 502;
-      return NextResponse.json(
-        {
-          error:
-            status === 429
-              ? 'The model is busy right now. Try again shortly.'
-              : 'Could not get an explanation. Try again.',
-        },
-        { status, headers },
-      );
+      if (error.status === 429) {
+        const refusal = await refusedByProvider(error);
+        return NextResponse.json({ error: refusal.message, code: refusal.code, refunded: true }, { status: 503, headers });
+      }
+      return NextResponse.json({ error: 'Could not get an explanation. Try again.' }, { status: 502, headers });
     }
 
     console.error('explain failed:', error);
@@ -150,6 +174,7 @@ function streamResponse(
   run: (emit: (e: StreamEvent) => void, onParse: (o: ParseOutcome) => void) => Promise<ExplainResult>,
   start: Record<string, unknown>,
   dayOffsetMinutes: number,
+  onRefusal: (error: ProviderError) => Promise<Refusal>,
   headers: Record<string, string>,
 ) {
   const encoder = new TextEncoder();
@@ -170,13 +195,15 @@ function streamResponse(
       } catch (error) {
         const partial = error instanceof ProviderError && error.partial;
         if (!(error instanceof ProviderError)) console.error('explain stream failed:', error);
-        send({
-          type: 'error',
-          partial,
-          message: partial ? 'Answer cut off. Try again.'
-            : error instanceof ProviderError && error.status === 429 ? 'The model is busy right now. Try again shortly.'
-              : 'Could not get an explanation. Try again.',
-        });
+        if (error instanceof ProviderError && error.status === 429 && !partial) {
+          send({ type: 'error', partial: false, ...(await onRefusal(error)) });
+        } else {
+          send({
+            type: 'error',
+            partial,
+            message: partial ? 'Answer cut off. Try again.' : 'Could not get an explanation. Try again.',
+          });
+        }
       }
       clearInterval(heartbeat);
       await counted;
@@ -192,4 +219,19 @@ function streamResponse(
       'X-Accel-Buffering': 'no',
     },
   });
+}
+
+type Refusal = { code: 'deep_resting' | 'service_resting' | 'busy'; message: string; refunded: true };
+
+const RESTING = {
+  deep_resting: 'Go deeper is resting until tomorrow. It runs on a small shared daily quota, and today\'s is used up. Your allowance was not charged.',
+  service_resting: 'ContextReader has used its share of the model for today, across everyone. It\'s back tomorrow. This one was not counted.',
+};
+
+/** Refused before anything was charged, with when it comes back. */
+function restingResponse(code: 'deep_resting', resetAt: number, headers: Record<string, string>) {
+  return NextResponse.json(
+    { error: RESTING[code], code, refunded: true, resetAt },
+    { status: 503, headers: { ...headers, 'Retry-After': String(Math.max(1, resetAt - Math.floor(Date.now() / 1000))) } },
+  );
 }

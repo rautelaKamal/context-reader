@@ -52,6 +52,8 @@ export class ProviderError extends Error {
     readonly status?: number,
     /** Some of the answer had already been streamed when this happened. */
     readonly partial = false,
+    /** The provider's daily quota is spent (not a momentary rate limit). */
+    readonly daily = false,
   ) {
     super(message);
     this.name = 'ProviderError';
@@ -118,7 +120,7 @@ export function createOpenAICompatibleProvider(
       }
       if (!response.ok || !response.body) {
         const detail = await response.text().catch(() => '');
-        throw new ProviderError(`Model service returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`, response.status);
+        throw new ProviderError(`Model service returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`, response.status, false, isDailyQuota(response.status, detail));
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -139,7 +141,7 @@ export function createOpenAICompatibleProvider(
       return raw;
     } catch (error) {
       if (stalled) throw new ProviderError('The model stopped responding', 504, got.text);
-      if (error instanceof ProviderError) throw new ProviderError(error.message, error.status, got.text);
+      if (error instanceof ProviderError) throw new ProviderError(error.message, error.status, got.text, error.daily);
       throw new ProviderError('Could not reach the model service', 502, got.text);
     } finally {
       clearTimeout(timer);
@@ -190,6 +192,8 @@ export function createOpenAICompatibleProvider(
         throw new ProviderError(
           `Model service returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`,
           response.status,
+          false,
+          isDailyQuota(response.status, detail),
         );
       }
 
@@ -215,4 +219,9 @@ export function getProvider(): Provider {
 
 export function hasProviderCredentials(): boolean {
   return Boolean(process.env.HUGGING_FACE_API_KEY ?? process.env.PROVIDER_API_KEY);
+}
+
+/** Gemini names its quotas; a per-day one won't come back until tomorrow. */
+export function isDailyQuota(status: number, detail: string): boolean {
+  return status === 429 && /PerDay/i.test(detail);
 }

@@ -1866,3 +1866,50 @@ re-rendering. When the final answer arrives, swap it in within a single task,
 so the browser never paints the halfway state. Then measure it: sample the
 positions of what's already on screen while text streams, and check that
 none of them changes.
+
+---
+
+## Cap deep reads per day, and never charge for a request the provider refuses
+
+**What changed.** Three things on the server:
+
+* **A daily cap on deep reads, across everyone.** It's set by
+  `DEEP_DAILY_CAP` and defaults to 15. Each deep request takes a slot from a
+  Redis counter before the reader is charged anything. When the slots are
+  gone, the API answers `503` with `code: "deep_resting"` and the time it
+  resets, and the reader's allowance is untouched. A reader refused for their
+  own limit gives their slot back.
+* **The provider's own refusals are free.** If the model provider answers
+  `429`, the reader's charge is refunded: install, address and global
+  counters, and the request id is forgotten. The reply says so plainly. A
+  per-day quota error (Gemini names it `…PerDay…`) is told apart from a
+  momentary rate limit. For the deep model, a per-day error closes deep reads
+  for the rest of the day, in case the cap was set too high.
+* **Charges are recorded.** `spend` now reports what a request actually
+  cost, so a refund gives back exactly that: nothing for a repeat that was
+  already free.
+
+**Why.** The deep model's free tier allows about 20 requests a day for the
+whole Google project. Each reader's allowance allows up to 10 deep reads, so
+a handful of readers can use up the deep model for everyone. Without a cap,
+the provider simply starts failing. And until now a reader was charged even
+when the provider refused, for an answer they never got.
+
+**What breaks without it.** Go deeper fails unpredictably for everyone once
+the provider's quota is gone, and readers lose allowance to those failures.
+
+**Interview questions**
+
+*Q: Why check the cap before charging the reader, rather than after?*
+A: Because a refusal must cost nothing, and the cheapest refund is the one
+you never have to make. Taking a slot first and charging second means a
+refused deep read touches only the deep counter. In the rarer case where the
+slot is taken and the reader is then refused for their own limit, the slot
+is given back, so the counter stays equal to deep reads actually served.
+
+*Q: Why distinguish a per-day quota error from a per-minute one?*
+A: They need opposite advice. A per-minute limit clears in seconds, so the
+honest message is "try again in a minute". A per-day limit won't clear until
+tomorrow, so telling people to retry would only frustrate them. It's also
+the signal to stop sending deep requests to the provider at all for the rest
+of the day.
