@@ -251,3 +251,39 @@ test('parse outcome counter', async (t) => {
     await countParse(async () => { throw new Error('down'); }, 'failed', 0, day);
   });
 });
+
+test('a retry with the same request id is not charged twice', async (t) => {
+  // A fake that also understands SET NX, the way Redis answers it: OK the first time, null after.
+  function redisWithSet() {
+    const r = fakeRedis();
+    const inner = r.pipeline;
+    r.pipeline = async (commands) => commands[0][0] === 'SET'
+      ? commands.map(([, key]) => (key in r.store ? null : ((r.store[key] = '1'), 'OK')))
+      : inner(commands);
+    return r;
+  }
+  const base = { installId: 'install-1', ip: '1.2.3.4', limits: LIMITS, now: 0 };
+
+  await t.test('the first request with an id is charged, the repeat is free', async () => {
+    const r = redisWithSet();
+    const first = await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    const again = await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    assert.equal(first.remaining, 29);
+    assert.equal(again.ok, true);
+    assert.equal(again.remaining, 29, 'still one used');
+  });
+
+  await t.test('a different id is a new request and is charged', async () => {
+    const r = redisWithSet();
+    await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    const other = await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-b' });
+    assert.equal(other.remaining, 28);
+  });
+
+  await t.test('the same id from another install is charged', async () => {
+    const r = redisWithSet();
+    await spend(r.pipeline, { ...base, cost: 1, requestId: 'req-a' });
+    const elsewhere = await spend(r.pipeline, { ...base, installId: 'install-2', cost: 1, requestId: 'req-a' });
+    assert.equal(elsewhere.remaining, 29);
+  });
+});

@@ -78,12 +78,21 @@ export function clientIp(request: Request): string {
   return forwarded?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
 }
 
+/** How long a request id is remembered, so a retry inside it isn't charged twice. */
+export const REPEAT_WINDOW_S = 120;
+
 export async function spend(
   pipeline: Pipeline | null,
-  { installId, ip, cost, limits, now, log = console.warn }:
+  { installId, ip, cost, limits, now, log = console.warn, requestId = null }:
   {
     installId: string | null; ip: string; cost: number; limits: Limits;
     now?: number; log?: (message: string) => void;
+    /**
+     * The client's id for this request. A retry with the same id inside
+     * REPEAT_WINDOW_S is not charged again: a stalled or cut-off answer that
+     * the reader retries costs them once.
+     */
+    requestId?: string | null;
   },
 ): Promise<QuotaDecision> {
   const { key: day, resetAt } = dayWindow(limits.dayOffsetMinutes, now);
@@ -106,10 +115,19 @@ export async function spend(
   const globalKey = `cr:g:${day}`;
 
   const keys = [installKey, ipKey, globalKey].filter((k): k is string => k !== null);
-  const commands = keys.flatMap((k) => [['INCRBY', k, cost], ['EXPIRE', k, ttl]]);
 
   let totals: number[];
   try {
+    // A repeat of a request already charged costs nothing; the counters are
+    // still read, so the reply carries the true remaining allowance.
+    let charge = cost;
+    if (requestId) {
+      const owner = installId ?? ip;
+      const repeatKey = `cr:r:${await hashed(`${owner}:${requestId}`)}`;
+      const [first] = await pipeline([['SET', repeatKey, '1', 'NX', 'EX', REPEAT_WINDOW_S]]);
+      if (first === null) charge = 0;
+    }
+    const commands = keys.flatMap((k) => [['INCRBY', k, charge], ['EXPIRE', k, ttl]]);
     const replies = await pipeline(commands);
     // Every other reply is the INCRBY result; the EXPIREs are housekeeping.
     totals = keys.map((_, i) => Number(replies[i * 2]));

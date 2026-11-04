@@ -21,7 +21,7 @@ execFileSync(
   [
     'tsc',
     'src/lib/modes.ts', 'src/lib/prompts.ts', 'src/lib/context.ts',
-    'src/lib/cors.ts', 'src/lib/quota.ts',
+    'src/lib/cors.ts', 'src/lib/quota.ts', 'src/lib/stream.ts', 'src/lib/provider.ts',
     '--outDir', out,
     '--module', 'commonjs',
     '--target', 'es2022',

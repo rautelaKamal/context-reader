@@ -1731,3 +1731,82 @@ A: A check written as a regular expression is code too, and it can be wrong
 in either direction without anyone noticing. A few labelled examples, run
 before the expensive part, make a broken check fail loudly and immediately,
 instead of quietly producing a wrong score.
+
+---
+
+## Stream answers from the server as structured events
+
+**What changed.** When a request includes `"stream": true`, `/api/explain`
+answers with newline-delimited JSON events instead of one JSON reply:
+
+* `start`: the lens, depth and allowance, sent at once
+* `summary`: summary text, in pieces as the model writes it
+* `section`: a new section begins, with its label
+* `delta`: that section's body, in pieces
+* `done`: the whole answer, parsed properly
+* `error`: what went wrong, and whether some text had already arrived
+* `wait`: every ten seconds while nothing else is being sent
+
+Underneath, the server asks the model to stream (`stream: true`, still with
+the response schema). `src/lib/stream.ts` reads the model's server-sent
+events and, as the JSON arrives, works out whether each piece of text
+belongs to the summary, a label or a body. Requests without `"stream"` get
+the old single reply, so 0.2.2 and the eval keep working.
+
+Two safety rules come with it:
+
+* **Stalls.** If the model sends no text for 12 seconds (45 seconds before
+  the first words in deep mode, because a reasoning model writes nothing
+  while it thinks), the request is aborted. If nothing had reached the
+  reader yet, it's retried once, invisibly. If words had already been shown,
+  it ends with "Answer cut off. Try again." instead, because a retry would
+  replace them.
+* **Charged once.** The allowance is charged before the stream starts,
+  exactly as before, so streaming can't bypass it. The client also sends a
+  request id. A retry with the same id within two minutes isn't charged
+  again, on the server or in the extension.
+
+**Why.** A fast answer takes about two seconds, and a deep one ten or more.
+Showing the first words as soon as they exist makes the wait feel shorter
+and shows the reader that something is happening.
+
+**SSE versus WebSockets.** Streaming here goes one way, server to reader,
+for a few seconds, once per question. A normal HTTP response whose body
+arrives in pieces does exactly that. It works through the same `fetch`, the
+same CORS rules, the same quota check and the same Vercel edge function. A
+WebSocket is a two-way connection that stays open. That's useful for chat
+or live collaboration, but here it would mean a separate protocol, a
+connection to manage and nothing gained, since the reader never needs to
+send anything mid-answer. The model's own stream uses server-sent events
+(`data:` lines). Ours uses one JSON object per line, the same idea in an
+even simpler format.
+
+**Why structured events instead of passing on partial JSON.** The model's
+reply is one JSON document, and a half-finished JSON document can't be
+parsed. Forwarding raw fragments would make every client rebuild a JSON
+parser that tolerates incomplete input, and get escapes split across chunks
+right. The server does that once, in one tested place, and sends events the
+card can apply directly: add this text to the summary, start a section with
+this label. The `done` event still carries the properly parsed answer, so
+the streamed text is a preview and the final version is authoritative.
+
+**What breaks without it.** Readers stare at a skeleton for the whole answer.
+A provider stall leaves the card waiting until a 45-second timeout. And a
+reader who taps Try again after a failure pays twice.
+
+**Interview questions**
+
+*Q: How do you stop a retry after a failure from being charged twice?*
+A: The client makes a random id for each request and sends it with any
+retry of that request. The server remembers the id for two minutes with a
+Redis `SET NX`, which only succeeds the first time. If it's already there,
+the request is let through at a cost of zero. The id is scoped to the
+install, so it can't be used to dodge someone else's limit.
+
+*Q: Why retry a stall only if nothing has been shown yet?*
+A: A retry starts the answer from scratch, and the model may well say it
+differently the second time. If the reader has already seen half of the
+first version, silently swapping in a different one would be confusing. So
+the system is honest instead: it keeps what arrived, says it was cut off,
+and offers a free retry.
+
