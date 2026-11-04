@@ -1558,3 +1558,61 @@ worse than no hint, so the pill shows what Chrome reports, or nothing.
 A: The selection can be inside an iframe, and only the frame that holds it
 can read it. Each frame checks whether it has focus and a selection; the one
 that does opens the card, and the rest ignore the message.
+
+---
+
+## Redesign the explanation card, and run in every frame without slowing pages
+
+**What changed.** The card now matches the product film and the store
+listing:
+
+* **Lens.** The current lens is one button that opens a "Change lens" menu,
+  instead of five wrapping chips. The menu works from the keyboard: arrows,
+  Home, End and Escape.
+* **Hierarchy.** The summary is 16px. Below it, each section is a heading
+  you tap to open, and only the first starts open. Which sections are open is
+  remembered per lens while the page stays open.
+* **Evidence.** Quotes are highlighted in yellow only when the shared checker
+  verifies them: three or more words, found word for word in what was sent.
+  Anything else stays plain.
+* **Close and footer.** A ✕ in the corner and Escape both close the card. The
+  footer reads "N left today · Go deeper", with room kept for 👍/👎 later.
+* **Loading and errors.** Loading is a short skeleton instead of a spinner.
+  Errors are a plain heading and sentence with "Try again".
+* **Height.** The card grows to about 70% of the window, then scrolls, and
+  the visible area always ends between sections, never through a heading.
+* **Focus.** Focus moves into the card when it opens and returns when you
+  close it.
+* **Dark mode** follows the page behind the selection, falling back to the
+  system setting.
+
+The content script now runs in every frame, and the manifest declares the
+`explain-selection` command. Text inside iframes and in text fields can be
+explained. Each frame does no DOM work until it actually has a selection.
+
+**Why.** Five chips and an all-open list put the reader's eyes on navigation
+before the answer. Running in every frame fixes iframes, but done naively it
+costs every page with embeds. Measured on a page with 60 iframes, it added
+240 elements up front. Creating nothing until a selection appears keeps that
+at zero.
+
+**What breaks without it.** The card looks unlike the product in the film and
+the store. Quotes can't be trusted at a glance, and text in embedded frames
+can't be explained at all.
+
+**Interview questions**
+
+*Q: Why highlight only verified quotes, and leave the rest plain instead of
+marking them as wrong?*
+A: A highlight is a promise that the words are on the page, so it's given
+only when that's checked. Marking unverified quotes red would claim they're
+false, when many are just paraphrase in quotation marks or too short to
+check. Plain text makes no claim either way.
+
+*Q: Running a script in every iframe sounds expensive. How do you keep it
+cheap?*
+A: Do nothing until needed. Each frame registers three listeners and stops.
+The shadow root, the styles and the reader object are only created when that
+frame has a real selection or is asked to explain one. Chrome still gives
+each frame its own script environment, which costs memory even for an empty
+script, but the page's own DOM is left untouched.

@@ -19,12 +19,22 @@
         "<all_urls>"
       ],
       "js": [
+        "quotes.js",
         "content.js"
       ],
       "run_at": "document_idle",
-      "all_frames": false
+      "all_frames": true
     }
   ],
+  "commands": {
+    "explain-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
+      },
+      "description": "Explain the selected text"
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
