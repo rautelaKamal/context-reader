@@ -1913,3 +1913,41 @@ honest message is "try again in a minute". A per-day limit won't clear until
 tomorrow, so telling people to retry would only frustrate them. It's also
 the signal to stop sending deep requests to the provider at all for the rest
 of the day.
+
+---
+
+## Show "Go deeper is resting until tomorrow", and refund it locally
+
+**What changed.** When a deep read is refused, the card goes back to the
+answer the reader already had. Its Go deeper button is disabled and reads
+"Go deeper is resting until tomorrow". The service worker gives back the
+three explanations it had counted on this device, and tells the card the
+corrected number so the footer never shows the charge. It also remembers the
+resting state until the reset time, so the next deep read is answered at
+once, without a request or a charge. Refusals the server explains are never
+retried, and other refusals the provider makes (busy, or out for the day)
+are refunded the same way.
+
+**Why.** A refusal that silently costs three explanations, or replaces a
+good answer with an error, punishes the reader for a limit they didn't
+choose. Keeping their answer and saying plainly what's unavailable is both
+kinder and more honest.
+
+**What breaks without it.** Tapping Go deeper on a busy day would erase the
+answer on screen, show an error and spend three of the reader's daily
+explanations for nothing.
+
+**Interview questions**
+
+*Q: The server already refunds. Why does the extension refund too?*
+A: There are two counters. The server's is the one that's enforced. The
+extension keeps its own on the device, so it can show "29 left today"
+without asking the server. Both were charged, so both have to be given back,
+or the footer would show three fewer than the reader really has.
+
+*Q: Why remember the resting state on the device instead of asking each
+time?*
+A: Once the server has said deep reads are closed until a given time,
+asking again before then can only get the same answer. Answering locally is
+instant, doesn't spend a request on either side, and the stored time means
+it reopens by itself after the reset.

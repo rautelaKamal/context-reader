@@ -320,3 +320,36 @@ test('streaming over a port', async (t) => {
     assert.equal((await third.connect(request('req-0006')))[0].remaining, 28, 'a new id is charged');
   });
 });
+
+test('deep reads that are refused', async (t) => {
+  const deep = (id) => ({ type: 'explain', requestId: id, payload: { selection: 'a passage', depth: 'deep' } });
+  const resting = { ok: false, status: 503, body: { code: 'deep_resting', refunded: true, error: 'Go deeper is resting until tomorrow.', resetAt: Math.floor(Date.now() / 1000) + 3600 } };
+
+  await t.test('a deep read refused by the server costs the reader nothing and is not retried', async () => {
+    const store = {};
+    const { connect, calls, send } = bootWorker({ store, respondWith: resting });
+    const got = await connect(deep('req-deep-1'));
+    assert.equal(got.at(-1).code, 'deep_resting');
+    assert.equal(calls.length, 1, 'no retry of a refusal');
+    assert.equal((await send({ type: 'usage' })).remaining, 30, 'allowance untouched');
+  });
+
+  await t.test('once resting, the next deep read is refused without a request', async () => {
+    const store = {};
+    await bootWorker({ store, respondWith: resting }).connect(deep('req-deep-2'));
+    const again = bootWorker({ store, respondWith: resting });
+    const got = await again.connect(deep('req-deep-3'));
+    assert.equal(got.at(-1).code, 'deep_resting');
+    assert.equal(again.calls.length, 0);
+  });
+
+  await t.test('a provider refusal mid-stream is refunded too', async () => {
+    const store = {};
+    const lines = [{ type: 'start', mode: 'plain', depth: 'fast', modes: [] }, { type: 'error', code: 'busy', refunded: true, message: 'The model is busy.' }];
+    const { connect, send } = bootWorker({ store, streamLines: lines });
+    const got = await connect({ type: 'explain', requestId: 'req-busy-1', payload: { selection: 'x' } });
+    assert.equal(got.at(-1).code, 'busy');
+    assert.equal(got.at(-1).remaining, 30, 'the card is told the refunded count');
+    assert.equal((await send({ type: 'usage' })).remaining, 30);
+  });
+});

@@ -61,6 +61,35 @@ async function alreadyCharged(requestId) {
   }
 }
 
+/** Give back a local charge for a request the server refused without serving. */
+async function refundLocal(depth, requestId) {
+  try {
+    const usage = await readUsage();
+    const cost = COST[depth] ?? COST.fast;
+    const stored = await chrome.storage.local.get('charged');
+    const charged = stored?.charged ?? {};
+    // Only refund what was actually charged here: a repeat id was free already.
+    if (requestId && !(requestId in charged)) return Math.max(0, DAILY_LIMIT - usage.used);
+    delete charged[requestId];
+    const used = Math.max(0, usage.used - cost);
+    await chrome.storage.local.set({ usage: { date: usage.date, used }, charged });
+    return DAILY_LIMIT - used;
+  } catch {
+    // If it can't be recorded, the reader loses one; better than blocking.
+    return undefined;
+  }
+}
+
+/** Deep reads are closed until this time (ms), after the server said so. */
+async function deepRestingUntil() {
+  try { return (await chrome.storage.local.get('deepRestingUntil'))?.deepRestingUntil ?? 0; } catch { return 0; }
+}
+async function restDeep(resetAt) {
+  // The server's reset time if it gave one, otherwise the end of the reader's day.
+  const until = resetAt ? resetAt * 1000 : new Date().setHours(24, 0, 0, 0);
+  try { await chrome.storage.local.set({ deepRestingUntil: until }); } catch { /* best effort */ }
+}
+
 async function spend(depth, requestId) {
   const cost = COST[depth] ?? COST.fast;
   const usage = await readUsage();
@@ -279,6 +308,11 @@ chrome.runtime.onConnect.addListener((port) => {
     const { payload, requestId } = message;
     const depth = payload?.depth === 'deep' ? 'deep' : 'fast';
     try {
+      // Already known to be closed today: say so without charging or asking.
+      if (depth === 'deep' && (await deepRestingUntil()) > Date.now()) {
+        post({ type: 'error', code: 'deep_resting', refunded: true, message: 'Go deeper is resting until tomorrow. Your allowance was not charged.' });
+        return;
+      }
       const allowance = await spend(depth, requestId);
       if (!allowance.ok) {
         post({
@@ -290,12 +324,25 @@ chrome.runtime.onConnect.addListener((port) => {
         return;
       }
       await stream(payload, requestId, controller.signal, (event) => {
+        if (event.type === 'error' && event.refunded) {
+          // The server refused without serving; settle locally, then tell the card.
+          // The card showed the charged count from the start event; send the refunded one.
+          Promise.all([refundLocal(depth, requestId), event.code === 'deep_resting' ? restDeep(event.resetAt) : null])
+            .then(([remaining]) => post({ ...event, remaining }));
+          return;
+        }
         post(event.type === 'start' ? { ...event, remaining: allowance.remaining } : event);
       });
     } catch (error) {
+      let remaining;
+      if (error.refunded) {
+        remaining = await refundLocal(depth, requestId);
+        if (error.code === 'deep_resting') await restDeep(error.resetAt);
+      }
       if (!open) return;
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
       post({ type: 'error', partial: Boolean(error.partial), overLimit: Boolean(error.overLimit),
+        code: error.code, refunded: Boolean(error.refunded), remaining,
         message: offline ? 'No internet connection.' : error.message });
     }
   });
@@ -327,12 +374,19 @@ async function stream(payload, requestId, signal, onEvent, retried = false) {
   }
 
   if (!response.ok) {
-    // Same request id, so the server doesn't charge the retry.
+    const data = await response.json().catch(() => null);
+    // A refusal the server explained (deep resting, provider busy) is final
+    // and wasn't charged. Anything else on a 5xx is retried once, with the
+    // same request id, so the server doesn't charge the retry.
+    if (data?.code) {
+      const refused = new Error(data.error);
+      Object.assign(refused, { code: data.code, refunded: Boolean(data.refunded), resetAt: data.resetAt });
+      throw refused;
+    }
     if (RETRY_ONCE.has(response.status) && !retried) {
       await new Promise((resolve) => setTimeout(resolve, 900));
       return stream(payload, requestId, signal, onEvent, true);
     }
-    const data = await response.json().catch(() => null);
     const error = new Error(data?.error || FRIENDLY_STATUS[response.status] || `Request failed (${response.status}).`);
     if (response.status === 429) error.overLimit = true;
     throw error;

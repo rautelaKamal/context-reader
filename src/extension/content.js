@@ -141,6 +141,8 @@
       text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
     }
     .deep[disabled] { text-decoration: none; cursor: default; }
+    /* Resting reads as a plain sentence, not a dimmed link. */
+    .deep[disabled]:not(:empty) { color: var(--soft); }
     .dot[hidden], .deep[hidden] { display: none; }
     /* Kept free for a thumbs up and down later. */
     .reserved { width: 64px; }
@@ -632,6 +634,20 @@
       this.request();
     }
 
+    /** The Go deeper button: done, available, or resting for today. */
+    setDeeper(depth) {
+      const { deeper } = this.card;
+      if (this.deepResting && depth !== 'deep') {
+        deeper.disabled = true;
+        deeper.textContent = 'Go deeper is resting until tomorrow';
+        deeper.title = 'Deep reads run on a small shared daily quota, and today\'s is used up.';
+        return;
+      }
+      deeper.disabled = depth === 'deep';
+      deeper.textContent = depth === 'deep' ? 'Read closely' : 'Go deeper';
+      deeper.title = depth === 'deep' ? '' : 'Ask a slower, more careful model to read it again';
+    }
+
     setFoot({ loading = false } = {}) {
       const { left, dot, deeper } = this.card;
       if (loading) {
@@ -689,7 +705,7 @@
       // No lens chosen yet (the first request failed): drop the loading placeholder.
       if (!this.mode) this.card.lensSlot.textContent = '';
       this.setFoot();
-      this.card.deeper.disabled = false;
+      this.setDeeper(this.depth);
       this.positionCard();
     }
 
@@ -800,9 +816,18 @@
         }
         case 'error': {
           st.finished = true;
+          // A refused request was refunded; this is the corrected count.
+          if (typeof event.remaining === 'number') this.remaining = event.remaining;
           this.port = null;
           try { port.disconnect(); } catch { /* already gone */ }
-          if (event.partial && st.words) this.showCutOff(st, event.message);
+          if (event.code === 'deep_resting') {
+            // Back to the answer the reader already had, with Go deeper switched off for today.
+            this.deepResting = true;
+            this.depth = 'fast';
+            if (this.lastResult) this.renderResult(this.lastResult, { keepPlace: true });
+            else this.setError(event.message, { retryable: false, title: 'Go deeper is resting' });
+            this.card.deeper.focus();
+          } else if (event.partial && st.words) this.showCutOff(st, event.message);
           else {
             this.setError(event.message || 'Something went wrong on our side. Try again.', {
               retryable: !event.overLimit,
@@ -852,7 +877,7 @@
       this.card.body.appendChild(note);
       this.card.body.style.minHeight = '';
       this.setFoot();
-      this.card.deeper.disabled = false;
+      this.setDeeper(this.depth);
       this.fitBody();
     }
 
@@ -904,9 +929,9 @@
         this.renderLens();
       }
 
-      this.card.deeper.disabled = data.depth === 'deep';
-      this.card.deeper.textContent = data.depth === 'deep' ? 'Read closely' : 'Go deeper';
+      this.lastResult = data;
       this.setFoot();
+      this.setDeeper(data.depth);
 
       const { body } = this.card;
       // Replacing the streamed text with the final version happens in one
