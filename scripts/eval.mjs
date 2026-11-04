@@ -13,6 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,6 +42,11 @@ execFileSync('npx', ['tsc', 'src/lib/modes.ts', 'src/lib/prompts.ts', 'src/lib/c
 writeFileSync(join(out, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
 const require = createRequire(import.meta.url);
+
+// The extension's own quote checker, loaded as the extension loads it.
+const quoteScope = {};
+vm.runInNewContext(readFileSync(join(root, 'src', 'extension', 'quotes.js'), 'utf8'), { globalThis: quoteScope });
+const Quotes = quoteScope.ContextReaderQuotes;
 const { detectMode } = require(join(out, 'modes.js'));
 const { buildMessages, parseExplanation } = require(join(out, 'prompts.js'));
 
@@ -301,6 +307,9 @@ const tally = new Map();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let passed = 0, failed = 0;
+// Grounding: of the quotes long enough to count (3+ words), how many really
+// appear in what was sent. The card highlights only those.
+let quotesCounted = 0, quotesVerified = 0;
 const failures = [];
 
 console.log(`\nmodel: ${MODEL}   cases: ${cases.length}\n`);
@@ -358,6 +367,10 @@ for (const [i, testCase] of schedule.entries()) {
     ? [parsed.summary, ...parsed.sections.map((s) => `${s.label}: ${s.body}`)].join('\n')
     : raw;
 
+  const evidence = parsed ? Quotes.answerStats(parsed, Quotes.sentText(testCase.context)) : { counted: 0, verified: 0 };
+  quotesCounted += evidence.counted;
+  quotesVerified += evidence.verified;
+
   const missing = (testCase.expect ?? []).filter((re) => !re.test(text));
   // Reject patterns describe misreadings the answer must not assert. Since the
   // prompt now requires quoting the passage as evidence, an answer explaining
@@ -381,6 +394,7 @@ for (const [i, testCase] of schedule.entries()) {
   if (!parsed) console.log('  !! output did not parse as JSON');
   if (missing.length) console.log(`  !! missing: ${missing.join(' , ')}`);
   if (forbidden.length) console.log(`  !! contained: ${forbidden.join(' , ')}`);
+  if (evidence.counted) console.log(`  quotes verified: ${evidence.verified}/${evidence.counted}`);
   console.log(`  ${text.replace(/\n/g, '\n  ').slice(0, 700)}\n`);
 
   if (i < schedule.length - 1) await sleep(4500); // stay inside the free-tier RPM
@@ -388,6 +402,8 @@ for (const [i, testCase] of schedule.entries()) {
 
 console.log(`${'='.repeat(70)}\n${passed} passed, ${failed} failed` +
   (failures.length ? `  (${[...new Set(failures)].join(', ')})` : ''));
+const rate = quotesCounted ? ((100 * quotesVerified) / quotesCounted).toFixed(1) : 'n/a';
+console.log(`verified quotes (${Quotes.MIN_WORDS}+ words): ${quotesVerified}/${quotesCounted} = ${rate}%`);
 
 if (REPEAT > 1) {
   const unstable = [...tally.entries()].filter(([, t]) => t.pass > 0 && t.pass < t.total);

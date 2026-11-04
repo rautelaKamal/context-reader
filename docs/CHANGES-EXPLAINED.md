@@ -1483,3 +1483,43 @@ A: It only runs when the original fails to parse, so valid JSON is never
 touched. There's a test that valid JSON passes through unchanged. And the
 rule is conservative: a quotation mark only counts as the end of a string
 when what follows is clearly JSON structure.
+
+---
+
+## Share one quote checker between the card and the eval
+
+**What changed.** `src/extension/quotes.js` is a small plain-script module
+that finds the double-quoted spans in an answer and checks each against the
+text that was actually sent: the selection and its surrounding paragraphs.
+A quote counts only if it has at least three words. It is verified only if
+those words appear in the sent text in the same order; case, curly versus
+straight quotation marks and extra spaces are ignored. Punctuation at either
+end is trimmed, so only the words would be highlighted. `npm run eval` now
+uses the same file to report how many counted quotes were verified.
+
+**Why.** The card is about to highlight quotes as evidence, and a highlight
+is a claim: "these exact words are on the page". That claim needs one
+definition used everywhere. If the eval measured grounding one way and the
+card highlighted another way, the number would say nothing about what
+readers see. The three-word floor exists because one or two words
+("strategy", "in turn") appear in almost any passage, so finding them proves
+nothing.
+
+**What breaks without it.** The card could highlight a misquote as if it were
+on the page, and the eval's grounding number would describe a different rule
+from the one readers see.
+
+**Interview questions**
+
+*Q: Why load the same file in the extension and in Node, instead of writing
+the logic twice?*
+A: Two copies drift. Someone fixes an edge case in one, and the test keeps
+passing on the other. Writing it as a plain script that attaches itself to
+the global object lets the browser load it as a content script and Node load
+it in a VM, so the tests and the eval exercise the exact code that ships.
+
+*Q: Why ignore case and quotation-mark style but not a changed word?*
+A: Those differences don't change what was said: "Unfair" at the start of a
+quote, or a curly apostrophe in the page against a straight one in the
+answer. A changed word does change what was said, and a misquote presented
+as evidence is worse than no quote at all.
