@@ -1616,3 +1616,31 @@ The shadow root, the styles and the reader object are only created when that
 frame has a real selection or is asked to explain one. Chrome still gives
 each frame its own script environment, which costs memory even for an empty
 script, but the page's own DOM is left untouched.
+
+---
+
+## Version 0.3.0
+
+**What changed.** `manifest.json` goes from 0.2.2 to 0.3.0.
+
+**Why.** This release changes what readers see and use: a new card, a
+shortcut handled by Chrome, and support for iframes and text fields. Chrome
+Web Store updates are keyed on the version number, and a minor bump
+signals new behaviour rather than a fix.
+
+**What breaks without it.** The store rejects an upload whose version isn't
+higher than the published one, and anyone reporting a bug can't say which
+card they saw.
+
+**Interview questions**
+
+*Q: Why a separate commit just for the version number?*
+A: So the history shows exactly when the release was cut, and the version
+can be moved or reverted without touching any of the code. It also keeps
+"what changed" and "this is now 0.3.0" as two separate decisions.
+
+*Q: Why 0.3.0 and not 0.2.3?*
+A: The last number is for fixes that don't change behaviour. This release
+adds features and changes the interface, which is what the middle number is
+for. Before 1.0, that's the usual way to signal "noticeably new" without
+promising long-term stability.
