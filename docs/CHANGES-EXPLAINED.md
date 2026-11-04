@@ -1951,3 +1951,39 @@ A: Once the server has said deep reads are closed until a given time,
 asking again before then can only get the same answer. Answering locally is
 instant, doesn't spend a request on either side, and the stored time means
 it reopens by itself after the reset.
+
+---
+
+## Keep test runs off the production key
+
+**What changed.** `scripts/key-guard.mjs` compares the key a script is about
+to use with `PROD_KEY_HASH`, the SHA-256 of the production key, and prints a
+loud warning if they match. Only the hash is ever configured; the key itself
+is never printed or stored. The eval uses it, and now skips the deep cases
+unless `--include-deep` is passed. `scripts/timing.mjs`, which measures time
+to first words and total time, streaming and not, also checks the key the
+local server will use, and runs deep timings only with `--include-deep`.
+
+**Why.** One afternoon of evals and timing runs used up the deep model's
+whole daily quota for the project. When that project's key is also the
+production key, every reader's Go deeper stops working. Testing now uses a
+separate Google AI Studio project, and this makes it hard to get wrong
+silently.
+
+**What breaks without it.** A routine test run takes Go deeper away from
+real readers for the rest of the day, and nothing says why.
+
+**Interview questions**
+
+*Q: Why compare a hash instead of the key itself?*
+A: So the production key never has to be on the developer's machine at all.
+A hash can sit in a local config file safely: it can't be turned back into
+the key, but it's enough to recognise the key if someone pastes it in by
+mistake.
+
+*Q: Why make deep cases opt-in rather than just warning?*
+A: Because the cost is shared and scarce. A fast case is cheap, so the
+default run covers everything fast. A deep case spends one of about twenty
+daily requests for the whole project. Making it opt-in means spending that
+quota is always a deliberate choice, not a side effect of running the
+default command.

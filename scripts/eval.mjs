@@ -6,14 +6,16 @@
  * matching is a crude proxy for understanding, so the full output is printed
  * too - the checks catch regressions, the text is what you actually judge.
  *
- *   npm run eval            # all cases
- *   npm run eval -- irony   # cases whose name contains "irony"
+ *   npm run eval                    # all fast cases
+ *   npm run eval -- irony           # cases whose name contains "irony"
+ *   npm run eval -- --include-deep  # also the deep cases (they spend the deep model's small daily quota)
  */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { warnIfProductionKey } from './key-guard.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,6 +34,7 @@ const BASE = process.env.PROVIDER_BASE_URL;
 const KEY = process.env.PROVIDER_API_KEY ?? process.env.HUGGING_FACE_API_KEY;
 const MODEL = process.env.EXPLAIN_MODEL;
 if (!KEY) { console.error('No key. Set PROVIDER_API_KEY.'); process.exit(1); }
+warnIfProductionKey(KEY);
 
 const out = join(root, '.test-build');
 rmSync(out, { recursive: true, force: true });
@@ -310,7 +313,13 @@ const REPEAT = repeatFlag === -1 ? 1 : Number(argv[repeatFlag + 1] ?? 3);
 const skip = repeatFlag === -1 ? -1 : repeatFlag + 1;
 const positional = argv.filter((a, i) => !a.startsWith('--') && i !== skip);
 const filter = positional[0];
-const cases = filter ? CASES.filter((c) => c.name.includes(filter)) : CASES;
+// Deep cases use the deep model, whose free tier is about 20 requests a day for
+// the whole project. They run only when asked for.
+const INCLUDE_DEEP = argv.includes('--include-deep');
+const skippedDeep = CASES.filter((c) => c.depth === 'deep' && !INCLUDE_DEEP).map((c) => c.name);
+const cases = (filter ? CASES.filter((c) => c.name.includes(filter)) : CASES)
+  .filter((c) => c.depth !== 'deep' || INCLUDE_DEEP);
+if (skippedDeep.length) console.log(`skipping deep cases (pass --include-deep to run them): ${skippedDeep.join(', ')}`);
 /** name -> how many of the REPEAT runs passed. Flakiness is the real signal. */
 const tally = new Map();
 
