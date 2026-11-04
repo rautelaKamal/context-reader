@@ -353,3 +353,40 @@ test('deep reads that are refused', async (t) => {
     assert.equal((await send({ type: 'usage' })).remaining, 30);
   });
 });
+
+test('the allowance resets when the server says, shown in local time', async (t) => {
+  const inAnHour = Math.floor(Date.now() / 1000) + 3600;
+  const lines = [
+    { type: 'start', mode: 'plain', depth: 'fast', modes: [], quota: { remaining: 29, resetAt: inAnHour } },
+    { type: 'done', result: { summary: 's', sections: [] } },
+  ];
+  const timeOf = (s) => new Date(s * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  await t.test('the card is told the reset time from the server, in the reader\'s time', async () => {
+    const { connect } = bootWorker({ streamLines: lines });
+    const got = await connect({ type: 'explain', requestId: 'req-reset-1', payload: { selection: 'x' } });
+    assert.match(got[0].resets, /^(at|tomorrow at) /);
+    assert.ok(got[0].resets.endsWith(timeOf(inAnHour)));
+  });
+
+  await t.test('the popup gets the same phrase, and nothing says midnight', async () => {
+    const store = {};
+    await bootWorker({ store, streamLines: lines }).connect({ type: 'explain', requestId: 'req-reset-2', payload: { selection: 'x' } });
+    const usage = await bootWorker({ store }).send({ type: 'usage' });
+    assert.ok(usage.resets.endsWith(timeOf(inAnHour)));
+    assert.equal(usage.remaining, 29);
+  });
+
+  await t.test('once the server\'s reset time has passed, the local count starts again', async () => {
+    const store = { usage: { date: 'whenever', used: 12, until: Date.now() - 1000 } };
+    const usage = await bootWorker({ store }).send({ type: 'usage' });
+    assert.equal(usage.remaining, 30);
+  });
+
+  await t.test('the over-limit message names the reset time, not midnight', async () => {
+    const store = { usage: { date: 'x', used: 30, until: inAnHour * 1000 } };
+    const got = await bootWorker({ store }).connect({ type: 'explain', requestId: 'req-reset-3', payload: { selection: 'x' } });
+    assert.match(got.at(-1).message, new RegExp(`Resets (at|tomorrow at) ${timeOf(inAnHour).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`));
+    assert.doesNotMatch(got.at(-1).message, /midnight/);
+  });
+});

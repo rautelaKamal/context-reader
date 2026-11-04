@@ -144,6 +144,11 @@
     /* Resting reads as a plain sentence, not a dimmed link. */
     .deep[disabled]:not(:empty) { color: var(--soft); }
     .dot[hidden], .deep[hidden] { display: none; }
+    .left, .deep { white-space: nowrap; }
+    /* Resting, the note gets its own line under the count, instead of wrapping into it. */
+    .foot.resting { flex-wrap: wrap; row-gap: 2px; }
+    .foot.resting .dot { display: none; }
+    .foot.resting .deep { order: 5; flex-basis: 100%; text-align: left; }
     /* Kept free for a thumbs up and down later. */
     .reserved { width: 64px; }
 
@@ -655,6 +660,7 @@
       if (this.deepResting && depth !== 'deep') {
         if (this.deepResetAt && this.deepResetAt * 1000 <= Date.now()) this.deepResting = false;
       }
+      this.card.foot.classList.toggle('resting', Boolean(this.deepResting && depth !== 'deep'));
       if (this.deepResting && depth !== 'deep') {
         deeper.disabled = true;
         deeper.textContent = `Go deeper is resting until ${restingUntil(this.deepResetAt)}`;
@@ -678,8 +684,10 @@
         return;
       }
       const known = typeof this.remaining === 'number';
-      left.textContent = known ? (this.remaining === 0 ? 'None left today' : `${this.remaining} left today`) : '';
-      left.title = known ? 'Daily allowance, resets at midnight' : '';
+      const count = known ? (this.remaining === 0 ? 'None left today' : `${this.remaining} left today`) : '';
+      // The server's reset time, in the reader's own time ("resets at 18:30").
+      left.textContent = known && this.resets && this.resets !== 'once a day' ? `${count} · resets ${this.resets}` : count;
+      left.title = known ? 'Your daily explanations' : '';
       dot.hidden = !known;
       deeper.hidden = false;
     }
@@ -796,6 +804,7 @@
       switch (event.type) {
         case 'start': {
           if (typeof event.remaining === 'number') this.remaining = event.remaining;
+          if (event.resets) this.resets = event.resets;
           if (Array.isArray(event.modes) && event.modes.length) {
             this.modes = event.modes.map((m) => ({ id: m.id, label: m.label, hint: m.hint }));
           }

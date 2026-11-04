@@ -10,9 +10,9 @@ chrome.runtime.sendMessage({ type: 'usage' }, (response) => {
     return;
   }
 
-  const { remaining, limit } = response;
+  const { remaining, limit, resets } = response;
   el.textContent = remaining === 0
-    ? `No explanations left today. Resets at midnight.`
-    : `${remaining} of ${limit} explanations left today.`;
+    ? `No explanations left today. Resets ${resets}.`
+    : `${remaining} of ${limit} explanations left today, resets ${resets}.`;
   el.classList.toggle('spent', remaining === 0);
 });

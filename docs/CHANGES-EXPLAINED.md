@@ -2108,3 +2108,47 @@ Send the fewest requests that prove each point. Never write to production
 state; the Redis access is read-only. And skip with an explanation, rather
 than force, anything that can't be shown safely, like a deep refusal when
 the cap isn't full.
+
+---
+
+## Show when the allowance really resets, instead of "midnight"
+
+**What changed.** Every answer from the server says when its day ends
+(`quota.resetAt`, also sent as `X-Quota-Reset`). The extension now keeps
+its own count on that same window, and shows the time in the reader's local
+time:
+
+* **Card footer:** "29 left today · resets at 18:30", or "resets tomorrow
+  at 0:00"
+* **Popup:** "29 of 30 explanations left today, resets at 18:30"
+* **Over-limit messages:** "Resets at 18:30."
+
+Until the first answer arrives there's no time to show, so nothing claims
+one. When Go deeper is resting too, its note moves to its own line under the
+count, so the footer doesn't wrap into a jumble.
+
+**Why.** The server counts the allowance on one fixed day, India's midnight
+by default, but the extension said "resets at midnight", meaning the
+reader's own. For anyone outside India that was wrong by hours. Showing the
+real time, in their clock, is honest now, and a per-reader midnight can come
+later (planned for 0.4).
+
+**What breaks without it.** A reader in London is told the allowance resets
+at midnight, finds it's still empty at 00:05, and reasonably thinks the
+extension is broken.
+
+**Interview questions**
+
+*Q: Why move the device's count onto the server's window instead of keeping
+it on the local date?*
+A: Two counters with different days drift apart. The device would show 30
+left at local midnight while the server still refused until India's
+midnight. Following the time the server reports keeps the number on screen
+and the number enforced in step.
+
+*Q: Why not just convert "midnight in India" to local time in the
+extension?*
+A: That would bake the server's setting into the client. The server's day
+is configurable (`QUOTA_DAY_OFFSET_MINUTES`) and may change, for example to
+per-reader days in 0.4. Using the reset time the server actually sends means
+the extension is right whatever the server decides.

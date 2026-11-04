@@ -23,24 +23,43 @@ const DAILY_LIMIT = 30;
 const COST = { fast: 1, deep: 3 };
 
 function today() {
-  // Local date, so the reset happens at the reader's midnight, not UTC's.
   const now = new Date();
   return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 }
 
+/**
+ * The count on this device follows the server's day, so the number shown and
+ * the number enforced reset together. Each server reply says when its day
+ * ends (resetAt); until the first reply, the local date stands in.
+ */
 async function readUsage() {
   try {
     const { usage } = await chrome.storage.local.get('usage');
-    if (usage?.date === today()) return usage;
+    if (usage && (usage.until ? Date.now() < usage.until : usage.date === today())) return usage;
   } catch {
     // storage unavailable - treat as a fresh day rather than blocking the read
   }
-  return { date: today(), used: 0 };
+  return { date: today(), used: 0, until: null };
 }
 
-async function remainingToday() {
-  const usage = await readUsage();
-  return Math.max(0, DAILY_LIMIT - usage.used);
+/** Record when the server's day ends (Unix seconds), from a reply. */
+async function noteReset(resetAt) {
+  if (!Number.isFinite(resetAt)) return;
+  try {
+    const usage = await readUsage();
+    await chrome.storage.local.set({ usage: { ...usage, until: resetAt * 1000 } });
+  } catch {
+    // best effort
+  }
+}
+
+/** When the allowance resets, in the reader's own time: "at 18:30" or "tomorrow at 18:30". */
+function resetPhrase(until, now = new Date()) {
+  if (!until) return 'once a day';
+  const at = new Date(until);
+  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return day(at) > day(now) ? `tomorrow at ${time}` : `at ${time}`;
 }
 
 /** A retry of the same request within this window isn't charged again, here or on the server. */
@@ -98,16 +117,16 @@ async function spend(depth, requestId) {
   }
 
   if (usage.used + cost > DAILY_LIMIT) {
-    return { ok: false, remaining: Math.max(0, DAILY_LIMIT - usage.used) };
+    return { ok: false, remaining: Math.max(0, DAILY_LIMIT - usage.used), until: usage.until };
   }
 
-  const next = { date: usage.date, used: usage.used + cost };
+  const next = { date: usage.date, used: usage.used + cost, until: usage.until ?? null };
   try {
     await chrome.storage.local.set({ usage: next });
   } catch {
     // If it cannot be recorded, let the request through rather than deny it.
   }
-  return { ok: true, remaining: DAILY_LIMIT - next.used };
+  return { ok: true, remaining: DAILY_LIMIT - next.used, until: next.until };
 }
 
 /**
@@ -245,8 +264,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   }
 
   if (request?.type === 'usage') {
-    remainingToday().then((remaining) =>
-      sendResponse({ success: true, remaining, limit: DAILY_LIMIT }));
+    readUsage().then((usage) => sendResponse({
+      success: true, remaining: Math.max(0, DAILY_LIMIT - usage.used), limit: DAILY_LIMIT, resets: resetPhrase(usage.until),
+    }));
     return true;
   }
 
@@ -259,14 +279,16 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       if (!allowance.ok) {
         const err = new Error(
           depth === 'deep'
-            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
-            : `That is your ${DAILY_LIMIT} explanations for today. Resets at midnight.`,
+            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets ${resetPhrase(allowance.until)}.`
+            : `That is your ${DAILY_LIMIT} explanations for today. Resets ${resetPhrase(allowance.until)}.`,
         );
         err.overLimit = true;
         throw err;
       }
-      return call('/api/explain', request.payload).then((data) =>
-        sendResponse({ success: true, data, remaining: allowance.remaining }));
+      return call('/api/explain', request.payload).then(async (data) => {
+        await noteReset(data?.quota?.resetAt);
+        sendResponse({ success: true, data, remaining: allowance.remaining });
+      });
     })
     .catch((error) => {
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -319,8 +341,8 @@ chrome.runtime.onConnect.addListener((port) => {
         post({
           type: 'error', overLimit: true,
           message: depth === 'deep'
-            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
-            : `That is your ${DAILY_LIMIT} explanations for today. Resets at midnight.`,
+            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets ${resetPhrase(allowance.until)}.`
+            : `That is your ${DAILY_LIMIT} explanations for today. Resets ${resetPhrase(allowance.until)}.`,
         });
         return;
       }
@@ -332,7 +354,13 @@ chrome.runtime.onConnect.addListener((port) => {
             .then(([remaining]) => post({ ...event, remaining }));
           return;
         }
-        post(event.type === 'start' ? { ...event, remaining: allowance.remaining } : event);
+        if (event.type === 'start') {
+          const until = Number.isFinite(event.quota?.resetAt) ? event.quota.resetAt * 1000 : allowance.until;
+          noteReset(event.quota?.resetAt);
+          post({ ...event, remaining: allowance.remaining, resets: resetPhrase(until) });
+          return;
+        }
+        post(event);
       });
     } catch (error) {
       let remaining;
@@ -389,7 +417,10 @@ async function stream(payload, requestId, signal, onEvent, retried = false) {
       return stream(payload, requestId, signal, onEvent, true);
     }
     const error = new Error(data?.error || FRIENDLY_STATUS[response.status] || `Request failed (${response.status}).`);
-    if (response.status === 429) error.overLimit = true;
+    if (response.status === 429) {
+      error.overLimit = true;
+      await noteReset(data?.quota?.resetAt ?? Number(response.headers?.get?.('X-Quota-Reset')));
+    }
     throw error;
   }
 
