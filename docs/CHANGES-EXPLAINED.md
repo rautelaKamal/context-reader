@@ -1691,3 +1691,43 @@ firing again we'll see the number move.
 A: The replies contain what people were reading, and the privacy policy
 promises that's never stored. A count answers the question that matters, how
 often parsing goes wrong, without keeping anything a reader selected.
+
+---
+
+## Fix the irony-swift check, and report evidence as counts
+
+**What changed.** Three changes to `scripts/eval.mjs`:
+
+* **irony-swift.** The check no longer fails an answer that says the writer
+  "does not actually advocate" the proposal. A negation in the three words
+  before the phrase means it isn't the misreading. Each case can now carry
+  examples its check must allow and must catch, and the eval verifies them
+  before making any request.
+* **Counts, not percentages.** Verified quotes are reported as "25 of 26".
+* **Same request as the product.** The eval sends the same response schema
+  the server does, and reports how replies parsed. `--no-schema` sends the
+  old request, for comparison.
+
+**Why.** The old irony check marked a correct answer wrong. Correct readings
+of irony often say what the writer does *not* mean, so the check punished
+exactly the answer it should reward. The full record is in
+`docs/eval-findings.md`. Percentages on two dozen quotes suggest a precision
+the sample doesn't have: one quote moves the number by four points. And an
+eval that doesn't send what the product sends measures something else.
+
+**What breaks without it.** A false failure trains everyone to ignore the
+eval. A percentage invites reading noise as a trend.
+
+**Interview questions**
+
+*Q: How is this different from loosening a test to make it pass?*
+A: Loosening would let real misreadings through. This keeps every
+misreading the old pattern caught, and the eval now proves it on every run
+with examples that must still be caught, while no longer catching the
+negated phrasing of a correct answer. The test was wrong, not the model.
+
+*Q: Why test the test?*
+A: A check written as a regular expression is code too, and it can be wrong
+in either direction without anyone noticing. A few labelled examples, run
+before the expensive part, make a broken check fail loudly and immediately,
+instead of quietly producing a wrong score.
