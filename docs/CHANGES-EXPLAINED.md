@@ -2064,3 +2064,47 @@ page, the card and the help text.
 A: Hiding it would make it look like the feature vanished. A disabled button
 with its usual name, and a tooltip saying why, tells the reader what exists,
 that they've already used it, or when it's back, without making them hunt.
+
+---
+
+## A script to check the live API after a deploy
+
+**What changed.** `node scripts/verify-live.mjs [base-url]` runs five checks
+against the live API, as a fresh `test-` install, and prints pass or fail for
+each:
+
+* **(a)** the single-reply request that 0.2.2 sends still works
+* **(b)** streaming sends `start`, summary text, sections and `done`, and
+  charges once
+* **(c)** a deep request costs the reader three and takes a deep-cap slot. It
+  prints the Redis key to look for in Upstash, `cr:deep:<Pacific date>`, and
+  reads it before and after if the Upstash variables are set
+* **(d)** refused requests cost nothing
+* **(e)** CORS turns away a foreign origin and allows the extension
+
+It sends 3 fast requests, 1 deep, 1 malformed and 2 preflights, and exits
+non-zero if anything fails.
+
+**Why.** The new behaviour (streaming, the deep cap, refunds) only fully
+works with production's Redis and keys, so it can't be fully proven before
+the deploy. A short, repeatable check right after the deploy catches a
+broken release before readers do, without spending more than one deep
+request.
+
+**What breaks without it.** A deploy that breaks 0.2.2 users, or charges for
+refusals, would be noticed only when readers complain.
+
+**Interview questions**
+
+*Q: Why verify through the public API instead of reading the database?*
+A: Because what matters is what clients experience. The API's own replies
+report the remaining allowance, so the script can see exactly what a reader
+was charged without any special access. Reading Redis is an optional extra,
+read-only, for the one thing the API doesn't expose, the deep cap counter.
+
+*Q: How do you keep a production check from doing harm?*
+A: Use a throwaway identity, so it only ever spends its own allowance.
+Send the fewest requests that prove each point. Never write to production
+state; the Redis access is read-only. And skip with an explanation, rather
+than force, anything that can't be shown safely, like a deep refusal when
+the cap isn't full.
