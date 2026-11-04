@@ -175,3 +175,21 @@ export function refusalMessage(decision: QuotaDecision): string {
   }
   return `That is your explanations for today. They come back ${when}.`;
 }
+
+/**
+ * Counts how replies were parsed, per day: clean, repaired (stray quotes
+ * mended) or failed. Numbers only, never text, deleted after 30 days, so the
+ * parse-failure rate can be read in production. Never throws: a counter must
+ * not break an answer.
+ */
+export async function countParse(
+  pipeline: Pipeline | null, outcome: string, offsetMinutes: number, now = Date.now(),
+): Promise<void> {
+  if (!pipeline) return;
+  const key = `parse:${dayWindow(offsetMinutes, now).key}:${outcome}`;
+  try {
+    await pipeline([['INCR', key], ['EXPIRE', key, 2_592_000]]);
+  } catch {
+    // Counting is best effort.
+  }
+}

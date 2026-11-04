@@ -179,3 +179,22 @@ test('replies with unescaped quotation marks inside strings', async (t) => {
     assert.equal(parsed.sections[0].body, 'Dry, as in "would not be unfair to say"');
   });
 });
+
+test('parse outcomes', async (t) => {
+  const { parseWithOutcome, EXPLANATION_SCHEMA } = require('../.test-build/prompts');
+
+  await t.test('valid JSON is clean', () => {
+    assert.equal(parseWithOutcome('{"summary":"s","sections":[{"label":"L","body":"B"}]}').outcome, 'clean');
+  });
+  await t.test('stray quotes that had to be mended are counted as repaired', () => {
+    const r = parseWithOutcome('{"summary": "It is "an apology" here.", "sections": []}');
+    assert.equal(r.outcome, 'repaired');
+    assert.equal(r.parsed.summary, 'It is "an apology" here.');
+  });
+  await t.test('prose with no JSON at all is a failure', () => {
+    assert.equal(parseWithOutcome('Sorry, I cannot help with that.').outcome, 'failed');
+  });
+  await t.test('the schema asks for the summary before the sections', () => {
+    assert.deepEqual(Object.keys(EXPLANATION_SCHEMA.schema.properties), ['summary', 'sections']);
+  });
+});

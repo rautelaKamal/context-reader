@@ -16,6 +16,13 @@ export interface ChatOptions {
   temperature?: number;
   /** 'fast' answers in about two seconds; 'deep' thinks, and takes far longer. */
   depth?: Depth;
+  /**
+   * A JSON Schema the reply must follow. Sent as an OpenAI-style
+   * response_format, which Gemini's compatible endpoint turns into constrained
+   * decoding: the reply is then valid JSON of this shape, not text that
+   * usually is.
+   */
+  schema?: { name: string; schema: Record<string, unknown> };
 }
 
 export type Depth = 'fast' | 'deep';
@@ -61,21 +68,33 @@ function createOpenAICompatibleProvider(): Provider {
         throw new ProviderError('No model API key configured', 500);
       }
 
+      const send = (withSchema: boolean) => fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: options.maxTokens ?? 700,
+          temperature: options.temperature ?? 0.3,
+          ...(withSchema && options.schema
+            ? { response_format: { type: 'json_schema', json_schema: { ...options.schema, strict: true } } }
+            : {}),
+        }),
+      });
+
       let response: Response;
       try {
-        response = await fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages,
-            max_tokens: options.maxTokens ?? 700,
-            temperature: options.temperature ?? 0.3,
-          }),
-        });
+        response = await send(true);
+        // A model or server that rejects the schema (400) still answers
+        // without it; the prompt asks for the same JSON, and the parser
+        // copes with the occasional slip.
+        if (response.status === 400 && options.schema) {
+          console.warn(`provider rejected response_format for ${model}; retrying without a schema`);
+          response = await send(false);
+        }
       } catch {
         throw new ProviderError('Could not reach the model service', 502);
       }

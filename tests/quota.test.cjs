@@ -234,3 +234,20 @@ test('day window', async (t) => {
     );
   });
 });
+
+test('parse outcome counter', async (t) => {
+  const { countParse } = require('../.test-build/quota');
+  const day = 20_000 * 86_400_000;
+
+  await t.test('counts each outcome per day, as a number only', async () => {
+    const seen = [];
+    const pipeline = async (commands) => { seen.push(...commands); return commands.map(() => 1); };
+    await countParse(pipeline, 'repaired', 0, day);
+    assert.deepEqual(seen, [['INCR', 'parse:20000:repaired'], ['EXPIRE', 'parse:20000:repaired', 2592000]]);
+  });
+
+  await t.test('does nothing without a store, and never throws when the store fails', async () => {
+    await countParse(null, 'failed', 0, day);
+    await countParse(async () => { throw new Error('down'); }, 'failed', 0, day);
+  });
+});

@@ -5,7 +5,7 @@ import { parseContext, ValidationError } from '@/lib/context';
 import { applicableModes, detectMode, isModeId, MODES } from '@/lib/modes';
 import { hasProviderCredentials, ProviderError } from '@/lib/provider';
 import {
-  clientIp, COST, limitsFromEnv, quotaHeaders, refusalMessage, spend, upstashPipeline,
+  clientIp, COST, countParse, limitsFromEnv, quotaHeaders, refusalMessage, spend, upstashPipeline,
 } from '@/lib/quota';
 
 export const runtime = 'edge';
@@ -69,7 +69,13 @@ export async function POST(request: Request) {
       ? requested
       : detectMode({ selection: context.selection, url: context.url });
 
-    const result = await explain(context, mode, depth);
+    const limits = limitsFromEnv();
+    let parse: Promise<void> = Promise.resolve();
+    const result = await explain(context, mode, depth, (outcome) => {
+      if (outcome !== 'clean') console.warn(`parse outcome: ${outcome}`);
+      parse = countParse(upstashPipeline(), outcome, limits.dayOffsetMinutes);
+    });
+    await parse;
 
     // The extension renders its chips from this rather than a hardcoded list,
     // so a lens that makes no sense for the passage simply is not offered.

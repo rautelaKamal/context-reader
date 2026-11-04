@@ -1644,3 +1644,50 @@ A: The last number is for fixes that don't change behaviour. This release
 adds features and changes the interface, which is what the middle number is
 for. Before 1.0, that's the usual way to signal "noticeably new" without
 promising long-term stability.
+
+---
+
+## Ask the model for schema-shaped JSON, and count how replies parse
+
+**What changed.** Every request to the model now carries a JSON Schema for
+the answer, `summary` then `sections` of `label` and `body`. It's sent as an
+OpenAI-style `response_format` of type `json_schema`. Gemini's
+OpenAI-compatible endpoint supports this ([OpenAI compatibility, structured
+output](https://ai.google.dev/gemini-api/docs/openai)) and turns it into
+constrained decoding: the model can only produce text that is valid JSON of
+that shape ([Structured outputs](https://ai.google.dev/gemini-api/docs/structured-output)).
+If a provider rejects the schema with a 400, the request is sent once more
+without it.
+
+The stray-quote repair stays as a fallback. The server now records how each
+reply parsed (as sent, after mending stray quotes, or not at all) as a daily
+counter in Redis. It's a number only, never text, and expires after 30 days.
+`node scripts/parse-stats.mjs` prints the counts.
+
+**Why.** The repair fixes the symptom after the fact. The schema stops the
+broken JSON being written at all. Measured on 20 real requests each, with the
+product's own prompts:
+
+| | Parsed as sent | Needed quotes mended | Unreadable |
+| --- | --- | --- | --- |
+| Without the schema | 18 | 2 | 0 |
+| With the schema | 20 | 0 | 0 |
+
+The counter is how we'll know the rate in production instead of guessing.
+
+**What breaks without it.** About one reply in ten depends on a repair
+heuristic. And nothing would tell us if a model update made it worse.
+
+**Interview questions**
+
+*Q: If the schema guarantees valid JSON, why keep the repair?*
+A: Because the guarantee depends on the provider and the model. A fallback
+path without the schema, a different model behind the same setting, or a
+future API change could bring the old failure back. The repair is cheap,
+only runs when parsing fails, and now its use is counted, so if it starts
+firing again we'll see the number move.
+
+*Q: Why count parse outcomes rather than log the failing replies?*
+A: The replies contain what people were reading, and the privacy policy
+promises that's never stored. A count answers the question that matters, how
+often parsing goes wrong, without keeping anything a reader selected.

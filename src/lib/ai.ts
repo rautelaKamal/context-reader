@@ -1,5 +1,5 @@
 import { getProvider, ProviderError, type Depth } from './provider';
-import { buildMessages, parseExplanation, type Explanation } from './prompts';
+import { buildMessages, EXPLANATION_SCHEMA, parseWithOutcome, type Explanation, type ParseOutcome } from './prompts';
 import type { ModeId } from './modes';
 import type { PassageContext } from './context';
 
@@ -14,6 +14,8 @@ export async function explain(
   context: PassageContext,
   mode: ModeId,
   depth: Depth = 'fast',
+  /** Told how the reply was read, so the caller can count it. Never given the text. */
+  onParse?: (outcome: ParseOutcome) => void,
 ): Promise<ExplainResult> {
   const provider = getProvider();
   const messages = buildMessages(mode, context);
@@ -29,9 +31,11 @@ export async function explain(
     // Low: this is extraction, not composition. At 0.3 the same passage came
     // back with meaningfully different readings between runs.
     temperature: 0.1,
+    schema: EXPLANATION_SCHEMA,
   });
 
-  const parsed = parseExplanation(raw);
+  const { parsed, outcome } = parseWithOutcome(raw);
+  onParse?.(outcome);
 
   if (!parsed) {
     // The model answered but not in JSON. Its prose is still useful, so show

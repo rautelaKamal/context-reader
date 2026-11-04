@@ -179,13 +179,46 @@ ${context.selection}`;
  * Models still occasionally wrap JSON in a fence or add a stray sentence, so
  * pull out the first balanced object rather than trusting the whole string.
  */
+/**
+ * The shape every lens answers in. Summary first, so a streamed reply shows
+ * the gist before the detail.
+ */
+export const EXPLANATION_SCHEMA = {
+  name: 'explanation',
+  schema: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string' },
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { label: { type: 'string' }, body: { type: 'string' } },
+          required: ['label', 'body'],
+        },
+      },
+    },
+    required: ['summary', 'sections'],
+  },
+};
+
+/** How a reply was read: as it came, after mending stray quotes, or not at all. */
+export type ParseOutcome = 'clean' | 'repaired' | 'failed';
+
 export function parseExplanation(raw: string): Explanation | null {
+  return parseWithOutcome(raw).parsed;
+}
+
+export function parseWithOutcome(raw: string): { parsed: Explanation | null; outcome: ParseOutcome } {
   const text = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
   // Models are told to quote the passage, and now and then put those quotation
   // marks inside a JSON string without escaping them. One stray mark makes the
   // whole reply invalid, so if the reply as given doesn't parse, mend the stray
   // marks and try again.
-  return scan(text) ?? scan(repairQuotes(text));
+  const clean = scan(text);
+  if (clean) return { parsed: clean, outcome: 'clean' };
+  const repaired = scan(repairQuotes(text));
+  return repaired ? { parsed: repaired, outcome: 'repaired' } : { parsed: null, outcome: 'failed' };
 }
 
 /**
