@@ -1523,3 +1523,38 @@ A: Those differences don't change what was said: "Unfair" at the start of a
 quote, or a curly apostrophe in the page against a straight one in the
 answer. A changed word does change what was said, and a misquote presented
 as evidence is worse than no quote at all.
+
+---
+
+## Let Chrome deliver the keyboard shortcut
+
+**What changed.** The service worker now listens for a manifest command,
+`explain-selection`, and passes it to every frame of the active tab. It can
+also tell the content script which shortcut Chrome actually assigned, read
+from `chrome.commands.getAll()`, or an empty string if none is. The command
+itself is declared in the manifest in the next change.
+
+**Why.** Until now the shortcut was a `keydown` listener inside the page. A
+page handles its own keys first, and mail apps and editors routinely stop
+the ones they use, so on those sites ⌘⇧E never reached the extension. In a
+reproduction, a page that captured keys and text inside an iframe both
+failed. A manifest command is handled by Chrome before the page sees the
+key, so a page can't swallow it.
+
+**What breaks without it.** The shortcut works on simple articles and
+silently does nothing on the sites where people read most: mail, documents
+and anything embedded.
+
+**Interview questions**
+
+*Q: Why ask Chrome which shortcut was assigned instead of showing the one in
+the manifest?*
+A: The manifest only suggests keys. Chrome won't assign them if another
+extension already holds them, and the user can change them at
+chrome://extensions/shortcuts. A hint advertising keys that don't work is
+worse than no hint, so the pill shows what Chrome reports, or nothing.
+
+*Q: Why send the command to every frame rather than just the top one?*
+A: The selection can be inside an iframe, and only the frame that holds it
+can read it. Each frame checks whether it has focus and a selection; the one
+that does opens the card, and the rest ignore the message.

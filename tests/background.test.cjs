@@ -10,9 +10,11 @@ const { join } = require('node:path');
 
 const SOURCE = readFileSync(join(__dirname, '..', 'src', 'extension', 'background.js'), 'utf8');
 
-function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } }, breakStorage = false } = {}) {
+function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok' } }, breakStorage = false, shortcut = '⇧⌘E' } = {}) {
   let listener = null;
+  let onCommand = null;
   const calls = [];
+  const tabMessages = [];
 
   const context = {
     console,
@@ -42,6 +44,13 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
         // quota path, so the handler is accepted and never invoked.
         onInstalled: { addListener: () => {} },
       },
+      commands: {
+        onCommand: { addListener: (fn) => { onCommand = fn; } },
+        getAll: async () => [{ name: 'explain-selection', shortcut }, { name: '_execute_action', shortcut: '' }],
+      },
+      tabs: {
+        sendMessage: async (tabId, message) => { tabMessages.push({ tabId, message }); },
+      },
       storage: {
         local: {
           get: async (key) => {
@@ -62,7 +71,7 @@ function bootWorker({ store = {}, respondWith = { ok: true, body: { summary: 'ok
   const send = (message) =>
     new Promise((resolve) => { listener(message, null, resolve); });
 
-  return { send, store, calls };
+  return { send, store, calls, tabMessages, command: (name, tab) => onCommand(name, tab) };
 }
 
 const explain = (depth) => ({
@@ -210,5 +219,30 @@ test('daily allowance', async (t) => {
     const res = await send(explain());
     assert.equal(res.success, false);
     assert.equal(res.error, 'No text was selected');
+  });
+});
+
+test('keyboard shortcut', async (t) => {
+  await t.test('the command is forwarded to the tab, where the frame holding the selection opens the card', async () => {
+    const { command, tabMessages } = bootWorker();
+    command('explain-selection', { id: 7 });
+    assert.deepEqual(JSON.parse(JSON.stringify(tabMessages)), [{ tabId: 7, message: { type: 'explain-selection' } }]);
+  });
+
+  await t.test('other commands and tab-less events are ignored', async () => {
+    const { command, tabMessages } = bootWorker();
+    command('something-else', { id: 7 });
+    command('explain-selection', undefined);
+    assert.equal(tabMessages.length, 0);
+  });
+
+  await t.test('the pill is told the shortcut Chrome actually assigned', async () => {
+    const { send } = bootWorker({ shortcut: 'Ctrl+Shift+E' });
+    assert.equal((await send({ type: 'shortcut' })).shortcut, 'Ctrl+Shift+E');
+  });
+
+  await t.test('an unassigned shortcut comes back empty, so the pill hides it', async () => {
+    const { send } = bootWorker({ shortcut: '' });
+    assert.equal((await send({ type: 'shortcut' })).shortcut, '');
   });
 });

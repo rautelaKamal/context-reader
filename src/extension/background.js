@@ -161,7 +161,39 @@ async function call(endpoint, payload) {
   return response.json();
 }
 
+/** The name of the manifest command; Chrome binds the suggested shortcut to it. */
+const COMMAND = 'explain-selection';
+
+/**
+ * The shortcut Chrome actually assigned, as it displays it ("⇧⌘E",
+ * "Ctrl+Shift+E"), or '' when it isn't assigned: another extension may hold
+ * the same keys, or the reader may have cleared it in chrome://extensions/shortcuts.
+ */
+async function assignedShortcut() {
+  try {
+    const commands = await chrome.commands.getAll();
+    return commands.find((c) => c.name === COMMAND)?.shortcut ?? '';
+  } catch {
+    return '';
+  }
+}
+
+// Chrome handles the shortcut itself, before the page sees the keys, so sites
+// that capture keystrokes (mail, editors) can't swallow it. Every frame in the
+// tab gets the message; the one holding the selection opens the card.
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== COMMAND || !tab?.id) return;
+  chrome.tabs.sendMessage(tab.id, { type: COMMAND }).catch(() => {
+    // Restricted pages (the Web Store, chrome://) have no content script.
+  });
+});
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request?.type === 'shortcut') {
+    assignedShortcut().then((shortcut) => sendResponse({ shortcut }));
+    return true;
+  }
+
   if (request?.type === 'usage') {
     remainingToday().then((remaining) =>
       sendResponse({ success: true, remaining, limit: DAILY_LIMIT }));
@@ -210,6 +242,6 @@ chrome.runtime.onInstalled.addListener(async () => {
   for (const tab of tabs) {
     // Restricted pages (the Web Store, chrome://, other extensions) refuse, and
     // that is fine. There is nothing to read there.
-    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: js }).catch(() => {});
+    chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: js }).catch(() => {});
   }
 });
