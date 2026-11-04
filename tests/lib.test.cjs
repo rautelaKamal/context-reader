@@ -155,3 +155,27 @@ test('request parsing', async (t) => {
     assert.equal(parseContext({ selection: 'x'.repeat(5000) }).selection.length, 2000);
   });
 });
+
+test('replies with unescaped quotation marks inside strings', async (t) => {
+  // The real failure: the model quotes the passage without escaping the marks.
+  const broken = '{"summary": "The writer warns.", "sections": [{"label": "In other words", "body": "Polls show "Democrats appear to have the upper hand", but may be wrong."}, {"label": "Why it matters here", "body": "It calls the plan "an apology written in advance" and means it."}]}';
+
+  await t.test('are mended, not shown raw', () => {
+    const parsed = parseExplanation(broken);
+    assert.ok(parsed, 'parses');
+    assert.equal(parsed.sections.length, 2);
+    assert.equal(parsed.sections[0].body, 'Polls show "Democrats appear to have the upper hand", but may be wrong.');
+    assert.equal(parsed.sections[1].body, 'It calls the plan "an apology written in advance" and means it.');
+  });
+
+  await t.test('valid JSON is untouched by the repair', () => {
+    const { repairQuotes } = require('../.test-build/prompts');
+    const ok = '{"summary":"It says \\"x\\".","sections":[{"label":"L","body":"B"}]}';
+    assert.equal(repairQuotes(ok), ok);
+  });
+
+  await t.test('a quote at the very end of a body still closes the string', () => {
+    const parsed = parseExplanation('{"summary": "s", "sections": [{"label": "Tone", "body": "Dry, as in "would not be unfair to say""}]}');
+    assert.equal(parsed.sections[0].body, 'Dry, as in "would not be unfair to say"');
+  });
+});

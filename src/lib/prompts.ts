@@ -181,7 +181,40 @@ ${context.selection}`;
  */
 export function parseExplanation(raw: string): Explanation | null {
   const text = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  // Models are told to quote the passage, and now and then put those quotation
+  // marks inside a JSON string without escaping them. One stray mark makes the
+  // whole reply invalid, so if the reply as given doesn't parse, mend the stray
+  // marks and try again.
+  return scan(text) ?? scan(repairQuotes(text));
+}
 
+/**
+ * Escape double quotes that sit inside a JSON string but plainly don't end it.
+ * A quote ends a string only when what follows it is structure: a colon, a
+ * closing bracket, the end, or a comma that leads into the next key or value.
+ * Anything else ("calls it "an apology" rather than...") is prose, and gets a
+ * backslash. Valid JSON passes through unchanged.
+ */
+export function repairQuotes(text: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '\\' && inString) {
+      out += ch + (text[i + 1] ?? '');
+      i++;
+      continue;
+    }
+    if (ch !== '"') { out += ch; continue; }
+    if (!inString) { inString = true; out += ch; continue; }
+    const rest = text.slice(i + 1);
+    const closes = /^\s*($|[:}\]]|,\s*["{\[}\]])/.test(rest);
+    if (closes) { inString = false; out += ch; } else { out += '\\"'; }
+  }
+  return out;
+}
+
+function scan(text: string): Explanation | null {
   const start = text.indexOf('{');
   if (start === -1) return null;
 

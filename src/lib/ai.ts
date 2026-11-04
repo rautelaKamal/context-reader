@@ -35,10 +35,14 @@ export async function explain(
 
   if (!parsed) {
     // The model answered but not in JSON. Its prose is still useful, so show
-    // it rather than failing the request outright.
+    // it rather than failing the request outright - unless it is broken JSON,
+    // which would put braces and "label": keys in front of the reader.
     const fallback = raw.trim();
     if (!fallback) {
       throw new ProviderError('Model returned an empty response', 502);
+    }
+    if (/^(```(json)?\s*)?\{/i.test(fallback) || /"(summary|sections|label|body)"\s*:/.test(fallback)) {
+      throw new ProviderError('The answer came back garbled. Try again.', 502);
     }
     return { mode, depth, summary: fallback, sections: [] };
   }

@@ -1444,3 +1444,42 @@ It also showed its limit: that WebKit build refuses even a plain `muted
 autoplay playsinline` video unless the user has interacted, which real iOS
 Safari allows. So it could prove the fallback (the poster stays) but not that
 the loop autoplays on a real iPhone. That still needs checking on a device.
+
+---
+
+## Stop showing readers raw JSON when the model forgets to escape a quote
+
+**What changed.** When the model's reply doesn't parse as JSON, the server
+now repairs stray quotation marks and tries again before giving up. A
+quotation mark inside a string is escaped unless what follows it is
+structure: a colon, a closing bracket, the end of the text, or a comma
+leading into the next key. If the reply still doesn't parse and looks like
+JSON, the server returns "The answer came back garbled. Try again." instead
+of showing it.
+
+**Why.** The prompt tells the model to quote the passage as evidence, and it
+often writes those quotation marks inside a JSON string without the
+backslash JSON needs, as in `"body": "it calls the plan "an apology" here"`.
+One unescaped mark makes the whole reply invalid. The server then fell back
+to showing the reply as plain text, so readers saw braces, `"label":` keys
+and all. In testing, two of three real requests hit this, and three of the
+nineteen eval cases failed for this reason alone.
+
+**What breaks without it.** A good answer is thrown away and the reader sees
+something that looks broken, on exactly the passages where quoting matters
+most.
+
+**Interview questions**
+
+*Q: Why repair the JSON instead of asking the model to get it right?*
+A: You do both, but you can't rely on the request alone. A language model
+produces text that usually follows the format, not text that is guaranteed
+to. The stronger fix is a response mode where the provider enforces the
+schema, and that comes next. Even then, a cheap, conservative repair as a
+fallback means one stray character doesn't cost the reader the whole answer.
+
+*Q: How do you stop a repair like this from damaging replies that were fine?*
+A: It only runs when the original fails to parse, so valid JSON is never
+touched. There's a test that valid JSON passes through unchanged. And the
+rule is conservative: a quotation mark only counts as the end of a string
+when what follows is clearly JSON structure.
