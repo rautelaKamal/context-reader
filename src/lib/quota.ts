@@ -226,10 +226,41 @@ export function deepCapFromEnv(): number {
   return Number.isFinite(n) && n >= 0 ? n : 15;
 }
 
+/**
+ * The deep cap's day follows Google's: its per-day quotas reset at midnight
+ * Pacific time, so a cap counted on any other day would open slots the
+ * provider still considers spent. The reader's own allowance stays on its own
+ * clock (see dayWindow). Pacific time is PST (UTC-8) in winter and PDT (UTC-7)
+ * in summer; Intl works out which applies, so the change of clocks is handled.
+ */
+const PACIFIC = 'America/Los_Angeles';
+
+/** Minutes the Pacific clock is behind UTC at this instant: 480 in PST, 420 in PDT. */
+function pacificOffsetMinutes(at: number): number {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: PACIFIC, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(at).map((p) => [p.type, p.value]));
+  const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return Math.round((Math.floor(at / 1000) * 1000 - asUtc) / 60_000);
+}
+
+/** The Pacific calendar date, as the cap's key, and the next Pacific midnight in Unix seconds. */
+export function pacificDay(now = Date.now()): { key: string; resetAt: number } {
+  const local = new Date(now - pacificOffsetMinutes(now) * 60_000);
+  const [y, m, d] = [local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()];
+  const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  // Next midnight, using the offset in force at that midnight (it can differ
+  // from now's on the days the clocks change, which happens at 2am).
+  const guess = Date.UTC(y, m, d + 1) + pacificOffsetMinutes(now) * 60_000;
+  const midnight = Date.UTC(y, m, d + 1) + pacificOffsetMinutes(guess) * 60_000;
+  return { key, resetAt: Math.floor(midnight / 1000) };
+}
+
 export async function reserveDeep(
-  pipeline: Pipeline | null, cap: number, offsetMinutes: number, now = Date.now(),
+  pipeline: Pipeline | null, cap: number, now = Date.now(),
 ): Promise<{ ok: boolean; resetAt: number }> {
-  const { key: day, resetAt } = dayWindow(offsetMinutes, now);
+  const { key: day, resetAt } = pacificDay(now);
   if (!pipeline) return { ok: true, resetAt };
   const key = `cr:deep:${day}`;
   try {
@@ -245,17 +276,17 @@ export async function reserveDeep(
 
 /** The provider said its deep quota is spent: refuse further deep reads until tomorrow. */
 export async function closeDeepForToday(
-  pipeline: Pipeline | null, cap: number, offsetMinutes: number, now = Date.now(),
+  pipeline: Pipeline | null, cap: number, now = Date.now(),
 ): Promise<void> {
   if (!pipeline) return;
-  const key = `cr:deep:${dayWindow(offsetMinutes, now).key}`;
+  const key = `cr:deep:${pacificDay(now).key}`;
   try { await pipeline([['SET', key, cap + 1, 'EX', 172_800]]); } catch { /* best effort */ }
 }
 
 /** Give back a deep slot that was reserved but never used, because the reader was refused. */
-export async function releaseDeep(pipeline: Pipeline | null, offsetMinutes: number, now = Date.now()): Promise<void> {
+export async function releaseDeep(pipeline: Pipeline | null, now = Date.now()): Promise<void> {
   if (!pipeline) return;
-  try { await pipeline([['DECR', `cr:deep:${dayWindow(offsetMinutes, now).key}`]]); } catch { /* best effort */ }
+  try { await pipeline([['DECR', `cr:deep:${pacificDay(now).key}`]]); } catch { /* best effort */ }
 }
 
 /**

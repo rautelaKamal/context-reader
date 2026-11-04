@@ -1987,3 +1987,44 @@ default run covers everything fast. A deep case spends one of about twenty
 daily requests for the whole project. Making it opt-in means spending that
 quota is always a deliberate choice, not a side effect of running the
 default command.
+
+---
+
+## Count the deep cap on Google's day, and show the reset in the reader's time
+
+**What changed.** The deep cap now counts days the way Google does: from
+midnight Pacific time. Its Redis key is the Pacific date, for example
+`cr:deep:2026-11-05`. The reset time comes from `America/Los_Angeles`
+through `Intl`, so winter (PST, UTC−8) and summer (PDT, UTC−7) are both
+right, including the nights the clocks change. The reader's own allowance
+stays on its own day.
+
+Every deep refusal now carries the reset time. The card turns it into the
+reader's local time: "Go deeper is resting until 1:30 PM", "until tomorrow,
+1:30 PM", or a weekday if further off.
+
+**Why.** Gemini's per-day quotas reset at midnight Pacific. A cap counted on
+any other day would be out of step with the provider for part of every day:
+it would open fresh slots while Google still counted the old day as spent, or
+stay closed after Google had reset. "Until tomorrow" was also wrong for most
+readers: for someone in India the reset is early afternoon on the same day.
+
+**What breaks without it.** For part of each day Go deeper would say it's
+available and then fail, or say it's resting when it isn't. And readers
+would be told to wait until tomorrow for something back at lunchtime.
+
+**Interview questions**
+
+*Q: Why not just add eight hours to UTC to get Pacific time?*
+A: Because Pacific time is UTC−8 only in winter. From March to November it's
+UTC−7, and the switch happens at 2am on dates that move each year. Hard-coding
+an offset is wrong for half the year. Asking `Intl` for the time in
+`America/Los_Angeles` uses the time-zone database, which knows when the
+clocks change. The tests check midnight on both sides in both seasons, and
+on both nights the clocks change.
+
+*Q: Why do the deep cap and the reader's allowance use different days?*
+A: They limit different things. The deep cap mirrors the provider's quota,
+so it has to reset when the provider does. The reader's allowance is a
+promise to the reader ("resets at midnight"), so it follows their day. Using
+one clock for both would make one of them wrong.

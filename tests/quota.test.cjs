@@ -289,7 +289,8 @@ test('a retry with the same request id is not charged twice', async (t) => {
 });
 
 test('deep daily cap and refunds', async (t) => {
-  const { reserveDeep, releaseDeep, closeDeepForToday, refund, deepCapFromEnv } = require('../.test-build/quota');
+  const { reserveDeep, releaseDeep, closeDeepForToday, refund, deepCapFromEnv, pacificDay } = require('../.test-build/quota');
+  const DEEP_KEY = `cr:deep:${pacificDay(0).key}`;
   /** A fake Redis with the commands these use. */
   function redis(seed = {}) {
     const store = { ...seed };
@@ -317,22 +318,22 @@ test('deep daily cap and refunds', async (t) => {
   await t.test('deep reads are allowed up to the cap, then refused, and a refusal takes no slot', async () => {
     const r = redis();
     const results = [];
-    for (let i = 0; i < 4; i++) results.push((await reserveDeep(r.pipeline, 3, 0, 0)).ok);
+    for (let i = 0; i < 4; i++) results.push((await reserveDeep(r.pipeline, 3, 0)).ok);
     assert.deepEqual(results, [true, true, true, false]);
-    assert.equal(r.store['cr:deep:0'], 3, 'still three served');
+    assert.equal(r.store[DEEP_KEY], 3, 'still three served');
   });
 
   await t.test('a slot reserved for a reader who was then refused is given back', async () => {
     const r = redis();
-    await reserveDeep(r.pipeline, 3, 0, 0);
-    await releaseDeep(r.pipeline, 0, 0);
-    assert.equal(r.store['cr:deep:0'], 0);
+    await reserveDeep(r.pipeline, 3, 0);
+    await releaseDeep(r.pipeline, 0);
+    assert.equal(r.store[DEEP_KEY], 0);
   });
 
   await t.test('when the provider says its daily quota is spent, deep reads close for the day', async () => {
     const r = redis();
-    await closeDeepForToday(r.pipeline, 15, 0, 0);
-    assert.equal((await reserveDeep(r.pipeline, 15, 0, 0)).ok, false);
+    await closeDeepForToday(r.pipeline, 15, 0);
+    assert.equal((await reserveDeep(r.pipeline, 15, 0)).ok, false);
   });
 
   await t.test('a refused request is refunded in full, and its id forgotten', async () => {
@@ -361,4 +362,56 @@ test('daily quota errors are told apart from momentary ones', () => {
   assert.equal(isDailyQuota(429, '{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}'), true);
   assert.equal(isDailyQuota(429, '{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}'), false);
   assert.equal(isDailyQuota(503, 'PerDay'), false);
+});
+
+test('the deep cap resets at midnight Pacific time, PST and PDT', async (t) => {
+  const { pacificDay, reserveDeep } = require('../.test-build/quota');
+  const at = (iso) => Date.parse(iso);
+  const resetIso = (iso) => new Date(pacificDay(at(iso)).resetAt * 1000).toISOString();
+
+  await t.test('winter (PST, UTC-8): the day turns at 08:00 UTC', () => {
+    assert.equal(pacificDay(at('2026-01-15T07:59:59Z')).key, '2026-01-14');
+    assert.equal(pacificDay(at('2026-01-15T08:00:00Z')).key, '2026-01-15');
+    assert.equal(resetIso('2026-01-15T07:59:59Z'), '2026-01-15T08:00:00.000Z');
+    assert.equal(resetIso('2026-01-15T08:00:00Z'), '2026-01-16T08:00:00.000Z');
+  });
+
+  await t.test('summer (PDT, UTC-7): the day turns at 07:00 UTC', () => {
+    assert.equal(pacificDay(at('2026-07-15T06:59:59Z')).key, '2026-07-14');
+    assert.equal(pacificDay(at('2026-07-15T07:00:00Z')).key, '2026-07-15');
+    assert.equal(resetIso('2026-07-15T06:59:59Z'), '2026-07-15T07:00:00.000Z');
+  });
+
+  await t.test('the night the clocks go forward (8 March 2026) still resets at the next midnight', () => {
+    // 7 March is PST; midnight starting 8 March is still PST (the change is at 2am).
+    assert.equal(resetIso('2026-03-07T20:00:00Z'), '2026-03-08T08:00:00.000Z');
+    // During 8 March (PDT after 2am), the next midnight is in PDT.
+    assert.equal(resetIso('2026-03-08T20:00:00Z'), '2026-03-09T07:00:00.000Z');
+  });
+
+  await t.test('the night the clocks go back (1 November 2026) too', () => {
+    assert.equal(resetIso('2026-10-31T20:00:00Z'), '2026-11-01T07:00:00.000Z');
+    assert.equal(resetIso('2026-11-01T20:00:00Z'), '2026-11-02T08:00:00.000Z');
+  });
+
+  await t.test('the cap counts on the Pacific day: one second either side of midnight are different days', async () => {
+    const store = {};
+    const pipeline = async (commands) => commands.map(([verb, key]) => {
+      if (verb === 'INCR') return (store[key] = (store[key] ?? 0) + 1);
+      if (verb === 'DECR') return (store[key] = (store[key] ?? 0) - 1);
+      return 1;
+    });
+    assert.equal((await reserveDeep(pipeline, 1, at('2026-01-15T07:59:59Z'))).ok, true);
+    assert.equal((await reserveDeep(pipeline, 1, at('2026-01-15T07:59:59Z'))).ok, false, 'full before midnight');
+    assert.equal((await reserveDeep(pipeline, 1, at('2026-01-15T08:00:00Z'))).ok, true, 'a fresh day after');
+    assert.deepEqual(Object.keys(store).sort(), ['cr:deep:2026-01-14', 'cr:deep:2026-01-15']);
+  });
+
+  await t.test("the reader's own allowance stays on its own day, not Pacific", () => {
+    const { dayWindow } = require('../.test-build/quota');
+    // 07:59 UTC on 15 Jan is still 14 Jan in California but already 15 Jan in India.
+    const now = at('2026-01-15T07:59:00Z');
+    assert.notEqual(dayWindow(330, now).key, String(Math.floor(Date.parse('2026-01-14T00:00:00Z') / 86_400_000)));
+    assert.equal(pacificDay(now).key, '2026-01-14');
+  });
 });

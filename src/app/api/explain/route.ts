@@ -8,7 +8,7 @@ import type { ExplainResult } from '@/lib/ai';
 import type { ParseOutcome } from '@/lib/prompts';
 import type { StreamEvent } from '@/lib/stream';
 import {
-  clientIp, closeDeepForToday, COST, countParse, deepCapFromEnv, limitsFromEnv, quotaHeaders, refund,
+  clientIp, closeDeepForToday, COST, pacificDay, countParse, deepCapFromEnv, limitsFromEnv, quotaHeaders, refund,
   refusalMessage, releaseDeep, reserveDeep, spend, upstashPipeline,
 } from '@/lib/quota';
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   // The deep model's daily quota is shared by everyone and small, so a deep
   // read checks for a slot first, before the reader is charged anything.
   if (depth === 'deep') {
-    const slot = await reserveDeep(pipeline, deepCap, limits.dayOffsetMinutes);
+    const slot = await reserveDeep(pipeline, deepCap);
     if (!slot.ok) return restingResponse('deep_resting', slot.resetAt, headers);
   }
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   const quota = await spend(pipeline, charge);
 
   if (!quota.ok) {
-    if (depth === 'deep') await releaseDeep(pipeline, limits.dayOffsetMinutes);
+    if (depth === 'deep') await releaseDeep(pipeline);
     return NextResponse.json(
       { error: refusalMessage(quota), quota: { remaining: 0, resetAt: quota.resetAt } },
       {
@@ -87,8 +87,8 @@ export async function POST(request: Request) {
   const refusedByProvider = async (error: ProviderError): Promise<Refusal> => {
     await refund(pipeline, { ...charge, cost: quota.charged ?? 0 });
     if (depth === 'deep') {
-      if (error.daily) await closeDeepForToday(pipeline, deepCap, limits.dayOffsetMinutes);
-      return { code: 'deep_resting', message: RESTING.deep_resting, refunded: true };
+      if (error.daily) await closeDeepForToday(pipeline, deepCap);
+      return { code: 'deep_resting', message: RESTING.deep_resting, refunded: true, resetAt: pacificDay().resetAt };
     }
     return error.daily
       ? { code: 'service_resting', message: RESTING.service_resting, refunded: true }
@@ -221,10 +221,11 @@ function streamResponse(
   });
 }
 
-type Refusal = { code: 'deep_resting' | 'service_resting' | 'busy'; message: string; refunded: true };
+type Refusal = { code: 'deep_resting' | 'service_resting' | 'busy'; message: string; refunded: true; resetAt?: number };
 
 const RESTING = {
-  deep_resting: 'Go deeper is resting until tomorrow. It runs on a small shared daily quota, and today\'s is used up. Your allowance was not charged.',
+  // The card says when, in the reader's own time, from resetAt.
+  deep_resting: 'Go deeper is resting until its shared daily quota resets. Your allowance was not charged.',
   service_resting: 'ContextReader has used its share of the model for today, across everyone. It\'s back tomorrow. This one was not counted.',
 };
 
