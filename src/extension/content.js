@@ -181,6 +181,21 @@
   const chevron = () => icon('M3 4.5 6 7.5 9 4.5', 12);
   const cross = () => icon('M3.5 3.5l7 7M10.5 3.5l-7 7', 14);
 
+  /**
+   * When Go deeper is back, in the reader's own time: "1:30 PM", "tomorrow,
+   * 1:30 PM", or a weekday beyond that. Without a time, just "tomorrow".
+   */
+  function restingUntil(resetAt, now = new Date()) {
+    if (!resetAt) return 'tomorrow';
+    const at = new Date(resetAt * 1000);
+    const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const days = Math.round((day(at) - day(now)) / 86_400_000);
+    if (days <= 0) return time;
+    if (days === 1) return `tomorrow, ${time}`;
+    return `${at.toLocaleDateString([], { weekday: 'long' })}, ${time}`;
+  }
+
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -638,14 +653,20 @@
     setDeeper(depth) {
       const { deeper } = this.card;
       if (this.deepResting && depth !== 'deep') {
+        if (this.deepResetAt && this.deepResetAt * 1000 <= Date.now()) this.deepResting = false;
+      }
+      if (this.deepResting && depth !== 'deep') {
         deeper.disabled = true;
-        deeper.textContent = 'Go deeper is resting until tomorrow';
-        deeper.title = 'Deep reads run on a small shared daily quota, and today\'s is used up.';
+        deeper.textContent = `Go deeper is resting until ${restingUntil(this.deepResetAt)}`;
+        deeper.title = 'Go deeper runs on a small daily quota shared by everyone, and it is used up for now.';
         return;
       }
+      // One name everywhere: after a deep read the button still says Go deeper, done.
       deeper.disabled = depth === 'deep';
-      deeper.textContent = depth === 'deep' ? 'Read closely' : 'Go deeper';
-      deeper.title = depth === 'deep' ? '' : 'Ask a slower, more careful model to read it again';
+      deeper.textContent = 'Go deeper';
+      deeper.title = depth === 'deep'
+        ? 'This answer already used Go deeper'
+        : 'Go deeper: a slower, more careful model reads it again';
     }
 
     setFoot({ loading = false } = {}) {
@@ -821,11 +842,12 @@
           this.port = null;
           try { port.disconnect(); } catch { /* already gone */ }
           if (event.code === 'deep_resting') {
-            // Back to the answer the reader already had, with Go deeper switched off for today.
+            // Back to the answer the reader already had, with Go deeper switched off until the reset.
             this.deepResting = true;
+            this.deepResetAt = event.resetAt;
             this.depth = 'fast';
             if (this.lastResult) this.renderResult(this.lastResult, { keepPlace: true });
-            else this.setError(event.message, { retryable: false, title: 'Go deeper is resting' });
+            else this.setError(`Go deeper is resting until ${restingUntil(event.resetAt)}. Your allowance was not charged.`, { retryable: false, title: 'Go deeper is resting' });
             this.card.deeper.focus();
           } else if (event.partial && st.words) this.showCutOff(st, event.message);
           else {

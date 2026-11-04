@@ -34,9 +34,11 @@ suit the passage, and you can switch with a single tap.
 
 Answers come back in under two seconds. When that is not enough, **Go deeper**
 hands the same passage to a slower reasoning model. On three lines of Plath the
-quick pass explained the imagery; the deep pass caught that "fine" is held at
+quick answer explained the imagery, and Go deeper caught that "fine" is held at
 the line break so it reads first as praise and then, on the next line, as a
-grade of cloth.
+grade of cloth. It doesn't always: on the eval's line-break case it succeeds
+about one time in three. It also runs on a small daily quota shared by
+everyone, so on busy days it can be resting until the quota resets.
 
 ## How it works
 

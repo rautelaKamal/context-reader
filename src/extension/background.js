@@ -259,7 +259,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       if (!allowance.ok) {
         const err = new Error(
           depth === 'deep'
-            ? `Not enough left today for a deep read (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
+            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
             : `That is your ${DAILY_LIMIT} explanations for today. Resets at midnight.`,
         );
         err.overLimit = true;
@@ -309,8 +309,9 @@ chrome.runtime.onConnect.addListener((port) => {
     const depth = payload?.depth === 'deep' ? 'deep' : 'fast';
     try {
       // Already known to be closed today: say so without charging or asking.
-      if (depth === 'deep' && (await deepRestingUntil()) > Date.now()) {
-        post({ type: 'error', code: 'deep_resting', refunded: true, message: 'Go deeper is resting until tomorrow. Your allowance was not charged.' });
+      const restingUntil = depth === 'deep' ? await deepRestingUntil() : 0;
+      if (restingUntil > Date.now()) {
+        post({ type: 'error', code: 'deep_resting', refunded: true, resetAt: Math.floor(restingUntil / 1000), message: 'Go deeper is resting until its shared daily quota resets. Your allowance was not charged.' });
         return;
       }
       const allowance = await spend(depth, requestId);
@@ -318,7 +319,7 @@ chrome.runtime.onConnect.addListener((port) => {
         post({
           type: 'error', overLimit: true,
           message: depth === 'deep'
-            ? `Not enough left today for a deep read (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
+            ? `Not enough left today for Go deeper (it uses ${COST.deep}). ${allowance.remaining} remaining, resets at midnight.`
             : `That is your ${DAILY_LIMIT} explanations for today. Resets at midnight.`,
         });
         return;
@@ -342,7 +343,7 @@ chrome.runtime.onConnect.addListener((port) => {
       if (!open) return;
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
       post({ type: 'error', partial: Boolean(error.partial), overLimit: Boolean(error.overLimit),
-        code: error.code, refunded: Boolean(error.refunded), remaining,
+        code: error.code, refunded: Boolean(error.refunded), remaining, resetAt: error.resetAt,
         message: offline ? 'No internet connection.' : error.message });
     }
   });

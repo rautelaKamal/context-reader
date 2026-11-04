@@ -2028,3 +2028,39 @@ A: They limit different things. The deep cap mirrors the provider's quota,
 so it has to reset when the provider does. The reader's allowance is a
 promise to the reader ("resets at midnight"), so it follows their day. Using
 one clock for both would make one of them wrong.
+
+---
+
+## Call it Go deeper everywhere, and say when it's back
+
+**What changed.** After a deep answer, the button used to change its label
+to "Read closely". It now stays "Go deeper", disabled, with a tooltip saying
+the answer already used it. The extension's messages, the README and the
+store description say "Go deeper" instead of "a deep read" or "the deep
+pass". When Go deeper is resting, the card shows the reset time in the
+reader's local time. The README and the store text now say plainly that Go
+deeper doesn't always catch subtle effects, and that it can be resting on
+busy days.
+
+**Why.** One feature with three names (Go deeper, Read closely, deep read)
+makes people wonder whether those are three different things. The button is
+what people see first, so its name is the one everything else uses. The
+honesty changes keep the description in line with the eval: on the
+line-break case, Go deeper succeeds about one time in three.
+
+**What breaks without it.** A reader sees "Read closely" and looks for a new
+feature. And the store promises catches Go deeper makes only sometimes.
+
+**Interview questions**
+
+*Q: Is renaming one label worth a commit?*
+A: Consistency in names is part of the interface. When the same action is
+called different things in different places, people assume they're
+different actions and lose trust when they turn out to be the same. It costs
+a few lines to fix and saves confusion for everyone who reads the store
+page, the card and the help text.
+
+*Q: Why keep the button visible but disabled, rather than hiding it?*
+A: Hiding it would make it look like the feature vanished. A disabled button
+with its usual name, and a tooltip saying why, tells the reader what exists,
+that they've already used it, or when it's back, without making them hunt.
