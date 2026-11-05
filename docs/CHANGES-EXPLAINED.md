@@ -2292,3 +2292,39 @@ A: Window height times pixel ratio has to be a whole number of pixels. A
 460-wide window gives a height of 287.5, rounded to 288, and 288 x 1280/460
 is 801.4, rounded to 801. A 448-wide window gives exactly 280, and 280 x
 1280/448 is exactly 800.
+
+## Store screenshots: one layout for all five
+
+**What changed.** After shots 1 and 5 were zoomed, the five no longer looked
+like a set: two had large text, three had small text, and shot 1 had no
+source label. All five are now drawn the same way: the same zoom, the same
+caption in the top left, and the source label in the top right ("A plan for
+last summer" on shot 1). Each is exactly 1280x800.
+
+**Why not shot 5's zoom for all five.** The answer card can grow to 70% of
+the browser window's height and always opens below the selection when there
+is no room above it. At shot 5's zoom, the caption plus a four- or five-line
+passage left less room than that, so the cards in shots 2 to 4 ran off the
+bottom of the image. Shot 4's summary alone didn't fit. The chosen zoom is a
+little smaller, 88% of shot 5's, and the browser window is made shorter
+than the image. The card picks the height it would really use in that window,
+which keeps it, and its whole summary, inside the frame.
+
+**What breaks without it.** A store listing whose screenshots look like they
+came from different products, or cards cut off at the bottom edge.
+
+**Interview questions**
+
+*Q: Why can't you just make everything bigger until it fills the frame?*
+A: Because the card's size depends on the window, not the image. Zooming in
+means a smaller window, and the card takes a share of that window's height.
+The passage above it doesn't shrink with the window, so past some zoom level
+the two together are taller than the window. The fix is to find the largest
+zoom where the tallest case still fits, and use it for every shot.
+
+*Q: How did you check that every card fits instead of eyeballing it?*
+A: The capture script reads the card's position from inside the extension's
+closed shadow root through the Chrome DevTools Protocol. For each shot it
+checks that the card's bottom edge is inside the frame and that the summary
+isn't cut off by the card's scroll area. It printed a pass or fail line per
+shot, and I tried several zoom levels until all five passed.

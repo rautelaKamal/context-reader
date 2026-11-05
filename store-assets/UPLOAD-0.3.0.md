@@ -47,13 +47,19 @@ answer was on the card. Its server returned the saved real answers from
 card shows only the summary, as on the site. The footer shows the reset time
 as "0:00", because the capture browser used a 24-hour clock.
 
-Shots 1 and 5 are zoomed so the content fills the frame. In shot 1 the
-paragraph ends at the selection, so the pill sits on clear space instead of
-covering the next line. The pill shows
-"Ctrl+Shift+E", which is what Chrome reports on Windows and Linux, most of
-the audience. It was captured on a Mac, from a capture-only copy of the
-extension set to report that shortcut. The extension shows Chrome's own text
-for the shortcut, so it reads "Ctrl+Shift+E", not the film's "Ctrl⇧E".
+All five share one layout: the same zoom, caption and source label. They
+were drawn in a 680-pixel-wide browser window at 1280/680 pixel density, so
+each is exactly 1280x800. The window is 340 pixels tall, shorter than the
+425-pixel frame. The card sizes itself to the window, up to 70% of it, so it
+stays fully in frame below the passage. The frame also shows the page below
+the window. Shot 1's paragraph ends at the selection, so the pill sits on clear
+space instead of covering the next line.
+
+The pill shows "Ctrl+Shift+E", which is what Chrome reports on Windows and
+Linux, most of the audience. It was captured on a Mac, from a capture-only
+copy of the extension set to report that shortcut. The extension shows
+Chrome's own text for the shortcut, so it reads "Ctrl+Shift+E", not the
+film's "Ctrl⇧E".
 
 ## 5. Manifest: 0.2.2 to 0.3.0
 | Change | New permission or warning? |
