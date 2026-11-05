@@ -47,6 +47,12 @@ answer was on the card. Its server returned the saved real answers from
 card shows only the summary, as on the site. The footer shows the reset time
 as "0:00", because the capture browser used a 24-hour clock.
 
+Shots 1 and 5 are zoomed so the content fills the frame. The pill shows
+"Ctrl+Shift+E", which is what Chrome reports on Windows and Linux, most of
+the audience. It was captured on a Mac, from a capture-only copy of the
+extension set to report that shortcut. The extension shows Chrome's own text
+for the shortcut, so it reads "Ctrl+Shift+E", not the film's "Ctrl⇧E".
+
 ## 5. Manifest: 0.2.2 to 0.3.0
 | Change | New permission or warning? |
 | --- | --- |
