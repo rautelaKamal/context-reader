@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ContextReader",
+  "name": "ContextReader: Explain Hard Sentences & Editorials",
   "version": "0.3.0",
-  "description": "Select a dense passage and get what the writer actually means - in context, without leaving the page.",
+  "description": "Select a hard sentence on any page and see what the writer actually means, in plain English, with the words it relies on quoted.",
   "permissions": [
     "storage",
     "scripting"

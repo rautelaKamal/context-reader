@@ -2152,3 +2152,37 @@ A: That would bake the server's setting into the client. The server's day
 is configurable (`QUOTA_DAY_OFFSET_MINUTES`) and may change, for example to
 per-reader days in 0.4. Using the reset time the server actually sends means
 the extension is right whatever the server decides.
+
+---
+
+## Rename the store listing to say what it does
+
+**What changed.** The extension's `name` in `manifest.json` is now
+"ContextReader: Explain Hard Sentences & Editorials", and its `description`
+is "Select a hard sentence on any page and see what the writer actually
+means, in plain English, with the words it relies on quoted." (128
+characters).
+
+**Why.** The Chrome Web Store builds the listing's title and short summary
+from these two fields. "ContextReader" on its own tells a searcher nothing
+about the job it does, and people search for what they need ("explain",
+"hard sentence", "editorial"), not for a product name they haven't heard
+of. The description now says, in plain words, what happens and what makes
+it trustworthy.
+
+**What breaks without it.** The listing stays hard to find and doesn't say
+what it's for until someone opens it.
+
+**Interview questions**
+
+*Q: Why change these in the code rather than in the store dashboard?*
+A: For an extension the manifest is the source of truth. The store reads the
+title and summary from the uploaded package, and Chrome shows the same name
+on the extensions page and in menus. Keeping it in the code means the name
+is reviewed like any other change, and every place shows the same thing.
+
+*Q: Is a long, descriptive name a good idea?*
+A: Within limits. The name has to fit the store's space and still read as a
+name, so it leads with the brand and adds the job after a colon. It's 50
+characters, well inside the limit, and the description stays under the 132
+the store allows.
