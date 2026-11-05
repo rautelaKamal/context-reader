@@ -110,11 +110,11 @@
     .item-name { font-weight: 600; font-size: 14px; }
     .item-hint { font-size: 12.5px; color: var(--soft); }
 
-    .body { flex: 1 1 auto; min-height: 0; padding: 14px 16px 4px; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y proximity; }
+    .body { flex: 1 1 auto; min-height: 0; padding: 14px 16px 4px; overflow-y: auto; overscroll-behavior: contain; }
     .summary { margin: 0 0 12px; font-size: 16px; line-height: 1.5; white-space: pre-wrap; }
 
     /* Sections: the first open, the rest a tap away. */
-    .section { border-top: 1px solid var(--rule); scroll-snap-align: start; }
+    .section { border-top: 1px solid var(--rule); }
     .sec-head {
       display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
       min-height: 40px; padding: 8px 0; border: 0; background: none; text-align: left; cursor: pointer;

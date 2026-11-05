@@ -2223,3 +2223,39 @@ A: The store's categories are about what data can be handled, not how often.
 An email selected and explained is a personal communication leaving the
 browser, even if it only happens on request. Declaring it is accurate, and
 under-declaring is the riskier mistake for both readers and review.
+
+---
+
+## Stop the card scrolling its own summary out of view
+
+**What changed.** The card's body no longer uses CSS scroll snapping
+(`scroll-snap-type: y proximity` on the body, `scroll-snap-align: start` on
+each section).
+
+**Why.** Snapping was meant to make scrolling land neatly on section
+headings. But a browser re-applies snapping whenever the content changes
+size. When a streamed answer finished and the card redrew, it snapped to the
+nearest heading, the first section, and the summary at the top scrolled out
+of view. The reader opened a card and saw the middle of it. This showed up
+while taking the store screenshots, where the summary was hidden in two of
+four cards. Keeping headings uncut at the bottom edge is already handled by
+sizing the visible area to end between sections.
+
+**What breaks without it.** The most important line of the answer, the
+summary, is hidden as soon as it appears.
+
+**Interview questions**
+
+*Q: How can a CSS property that only affects scrolling move content the user
+didn't scroll?*
+A: Scroll snapping isn't only applied when the user scrolls. Browsers also
+re-snap after layout changes, so a container stays aligned to a snap point.
+In a container whose content is being replaced or growing, that means the
+browser picks a snap point for you, here the first section heading, and
+scrolls there on its own.
+
+*Q: How did you find it?*
+A: By capturing the real extension in a controlled setup and looking at the
+result instead of assuming. The store screenshots showed cards opening
+scrolled past the summary, which pointed at something scrolling the body
+after render. Removing the snapping and recapturing confirmed it.
