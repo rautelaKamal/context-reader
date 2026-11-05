@@ -2259,3 +2259,36 @@ A: By capturing the real extension in a controlled setup and looking at the
 result instead of assuming. The store screenshots showed cards opening
 scrolled past the summary, which pointed at something scrolling the body
 after render. Removing the snapping and recapturing confirmed it.
+
+## Store screenshots: fill the frame, exactly 1280x800
+
+**What changed.** Screenshot 1, the image people see in store search, filled
+only the top 40% of the frame. Shots 1 and 5 are now captured in a narrower
+browser window, then scaled up to 1280x800, so the text and the card are
+bigger and fill the image. In shot 1 the paragraph ends where the selection
+ends, so the Explain pill sits on empty space instead of covering a line of
+text. The pill shows "Ctrl+Shift+E", the shortcut text Chrome gives on
+Windows and Linux, where most readers are. Shot 1 is also exactly 800 pixels
+tall again: the first zoomed capture came out one pixel too tall.
+
+**Why.** The first screenshot decides whether someone opens the listing. A
+mostly empty image with small text says little at the size store search
+shows it. The store also rejects screenshots that aren't exactly 1280x800
+or 640x400.
+
+**What breaks without it.** A weak first impression in search, and, for the
+one-pixel error, an upload the dashboard refuses.
+
+**Interview questions**
+
+*Q: How do you make a screenshot's content bigger without blurry upscaling?*
+A: Render the page in a smaller window at a higher device pixel ratio. A
+448-pixel-wide window at a ratio of 1280/448 lays the page out as if the
+screen were small, so everything takes up more of it, while the browser
+still draws every pixel of the 1280-wide image sharply.
+
+*Q: Why did one capture come out 801 pixels tall?*
+A: Window height times pixel ratio has to be a whole number of pixels. A
+460-wide window gives a height of 287.5, rounded to 288, and 288 x 1280/460
+is 801.4, rounded to 801. A 448-wide window gives exactly 280, and 280 x
+1280/448 is exactly 800.

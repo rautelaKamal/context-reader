@@ -47,7 +47,9 @@ answer was on the card. Its server returned the saved real answers from
 card shows only the summary, as on the site. The footer shows the reset time
 as "0:00", because the capture browser used a 24-hour clock.
 
-Shots 1 and 5 are zoomed so the content fills the frame. The pill shows
+Shots 1 and 5 are zoomed so the content fills the frame. In shot 1 the
+paragraph ends at the selection, so the pill sits on clear space instead of
+covering the next line. The pill shows
 "Ctrl+Shift+E", which is what Chrome reports on Windows and Linux, most of
 the audience. It was captured on a Mac, from a capture-only copy of the
 extension set to report that shortcut. The extension shows Chrome's own text
