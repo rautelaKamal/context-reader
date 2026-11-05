@@ -1,42 +1,78 @@
 # Store upload checklist: 0.3.0
 
-## 1. Package (not built yet)
-- [ ] After the go-ahead, from `main` (`eb597a8` or later): `node scripts/package-extension.js` with `API_BASE` unset.
-- [ ] Upload `public/extension.zip`. Check it says `ContextReader v0.3.0` and the API is `https://context-reader.vercel.app`.
+Everything for one visit to the Chrome Web Store dashboard. Paths are from
+the repository root.
+
+## 0. Before the dashboard
+- [ ] `main` is pushed, and Vercel has deployed it. The listing links to
+      `/privacy`, which now has the line about text boxes and frames.
+- [ ] `node scripts/verify-live.mjs` passes against the live site. Last run:
+      a, b, d and e passed; c was skipped because Go deeper was resting.
+      Re-run after 13:30 IST.
+
+## 1. Package
+- [ ] Upload `public/extension.zip`. It's gitignored and built locally from
+      `main` at `fc4e2e4`, with `API_BASE` unset.
+  - Version: 0.3.0
+  - API base: `https://context-reader.vercel.app`
+  - SHA-256: `a91f132027a4afeb51e8ab8dddea016be4a2172c5439aa2d9f13ab6f565d063b`
+  - Contents (10 files, 95,291 bytes uncompressed): `background.js`,
+    `content.js`, `quotes.js`, `popup.html`, `popup.js`, `manifest.json`,
+    `icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-128.png`
+  - If anything changes on `main` before upload, rebuild with
+    `node scripts/package-extension.js` and check the version and API base
+    again.
 
 ## 2. Title and short description
-These come from `src/extension/manifest.json` (`name`, `description`), so changing them means a manifest commit before the zip is built.
-- Title (50 chars): `ContextReader: Explain Hard Sentences & Editorials`
-- Short description (128 of 132 chars): `Select a hard sentence on any page and see what the writer actually means, in plain English, with the words it relies on quoted.`
+These come from `manifest.json` inside the zip, so nothing to type:
+- Title: `ContextReader: Explain Hard Sentences & Editorials`
+- Short description (128 of 132 characters): `Select a hard sentence on any
+  page and see what the writer actually means, in plain English, with the
+  words it relies on quoted.`
 
 ## 3. Detailed description
-- Paste from `store-assets/description.txt` (updated "Go deeper" paragraph).
+- [ ] Paste from `store-assets/description.txt`, which has the updated
+      Go deeper paragraph.
 
-## 4. Screenshots, 1280x800 (not ready, see note)
-- `store-assets/screenshots/0.3.0/screenshot-1-select-1280x800.png`: Select any sentence. Click Explain.
-- `store-assets/screenshots/0.3.0/screenshot-2-meaning-1280x800.png`: Get what the writer actually means.
-- `store-assets/screenshots/0.3.0/screenshot-3-poem-1280x800.png`: Poems, line by line.
-- `store-assets/screenshots/0.3.0/screenshot-4-jargon-1280x800.png`: Jargon in plain words.
-- `store-assets/screenshots/0.3.0/screenshot-5-legal-1280x800.png`: Legal text in plain English.
+## 4. Screenshots, 1280x800: replace all five, in this order
+- [ ] `store-assets/screenshots/0.3.0/screenshot-1-select-1280x800.png`: Select any sentence. Click Explain.
+- [ ] `store-assets/screenshots/0.3.0/screenshot-2-meaning-1280x800.png`: Get what the writer actually means.
+- [ ] `store-assets/screenshots/0.3.0/screenshot-3-poem-1280x800.png`: Poems, line by line.
+- [ ] `store-assets/screenshots/0.3.0/screenshot-4-jargon-1280x800.png`: Jargon in plain words.
+- [ ] `store-assets/screenshots/0.3.0/screenshot-5-legal-1280x800.png`: Legal text in plain English.
 
-Note: the first capture of the real 0.3.0 extension shows the pill correctly, but cards 2 to 5 were captured while still loading. They need retaking.
+How they were made: the real 0.3.0 extension, captured only after the
+answer was on the card. Its server returned the saved real answers from
+`content/demo-outputs.json`, the same ones the film and site use. The legal
+card shows only the summary, as on the site. The footer shows the reset time
+as "0:00", because the capture browser used a 24-hour clock.
 
 ## 5. Manifest: 0.2.2 to 0.3.0
 | Change | New permission or warning? |
 | --- | --- |
+| `name` and `description` | No |
 | `version` 0.2.2 to 0.3.0 | No |
 | `quotes.js` added to content scripts | No |
 | `all_frames: false` to `true` | No. Same `<all_urls>` host access, so the same "read and change all your data on all websites" warning users already accepted |
 | `commands.explain-selection` (Ctrl+Shift+E / Command+Shift+E) | No. Commands need no permission and show no warning |
 
-`permissions` (storage, scripting) and `host_permissions` (`<all_urls>`) are unchanged, so existing users won't be asked to re-approve.
+`permissions` (storage, scripting) and `host_permissions` (`<all_urls>`)
+are unchanged, so existing users are not asked to re-approve.
 
 ## 6. Privacy tab
-- **Single purpose, permission justifications:** no change needed.
-- **Data collected:** still "Website content", the selected passage and its surrounding text. New in 0.3.0: text selected inside iframes and inside text fields can be explained too.
-- **Review:** a reader can select text in an email or a message they are writing and explain it. That was already possible for email text on the page in 0.2.2. Consider whether "Personal communications" should also be ticked to be safe.
-- **Policy:** `/privacy` doesn't mention text fields or iframes. Optional wording update.
-- **Request id:** the new `X-Request-Id` is a random id per request. It's not user data.
+- [x] **Data collected:** keep "Website content", and tick **Personal
+      communications**. 0.3.0 can explain text the reader selects inside a
+      text box or an embedded frame, such as an email or a chat they're
+      reading or writing. It's sent only when they select it and click
+      Explain, as `/privacy` now says.
+- [ ] **Single purpose and permission justifications:** no change.
+- [ ] **Certifications:** unchanged. Not sold, not used for unrelated
+      purposes, not used for creditworthiness.
+- [ ] **Privacy policy URL:** unchanged, `https://context-reader.vercel.app/privacy`
+      (updated 5 November 2026).
+- Note: the new `X-Request-Id` header is a random id per request, not user
+  data.
 
 ## 7. After upload
-- [ ] Once Vercel has deployed `main`: `node scripts/verify-live.mjs`. All checks should pass; (c) may skip if the deep cap is already full.
+- [ ] Re-run `node scripts/verify-live.mjs` once Go deeper is back, to see
+      check (c) pass.
