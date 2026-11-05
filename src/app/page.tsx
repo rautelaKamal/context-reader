@@ -177,6 +177,7 @@ export default function Home() {
           <div>
           <ul>
             <li>Nothing is sent until you click Explain or press the shortcut.</li>
+            <li>That includes text in a text box or an embedded frame, like an email or chat you&rsquo;re writing, but only when you select it and click Explain.</li>
             <li>Then it sends four things: the text you selected, the paragraph it&rsquo;s in and the one before, the page title, and the page address with everything after <strong>?</strong> or <strong>#</strong> removed.</li>
             <li>Our server passes the text to Google&rsquo;s Gemini, which writes the explanation. Google may use text sent to its free service to improve its products, so don&rsquo;t use ContextReader on anything private.</li>
             <li>We store none of it. To count the daily limit we keep three numbers. Your install ID and network address are scrambled (hashed) before we use them, and the numbers are deleted after 48 hours.</li>

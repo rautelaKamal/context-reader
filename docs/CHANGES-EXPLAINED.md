@@ -2186,3 +2186,40 @@ A: Within limits. The name has to fit the store's space and still read as a
 name, so it leads with the brand and adds the job after a colon. It's 50
 characters, well inside the limit, and the description stays under the 132
 the store allows.
+
+---
+
+## Say that text in text boxes and frames can be sent, and only when asked
+
+**What changed.** `/privacy` and the privacy section on the front page each
+gain one plain sentence. Since 0.3.0, text inside a text box or an embedded
+frame, like an email or chat message being read or written, can be
+explained, and that text is sent only when the reader selects it and clicks
+Explain or presses the shortcut. The policy's "last updated" date moves to
+5 November 2026.
+
+**Why.** 0.3.0 reads selections in iframes and text fields, which reach
+places 0.2.2 didn't, such as a message someone is still drafting. The
+promise ("nothing is sent until you ask") hasn't changed, but a reader
+deciding whether to trust the extension in their inbox deserves to see it
+spelled out for exactly that case. The store's Privacy tab gets the same
+update, with "Personal communications" ticked.
+
+**What breaks without it.** The policy would describe less than the
+extension can do, which is the kind of gap that loses trust when someone
+finds it.
+
+**Interview questions**
+
+*Q: The behaviour on asking hasn't changed. Why update the policy?*
+A: Because the reach has. A privacy policy should describe what can leave
+the browser, and drafts and messages are more sensitive than a news article.
+Saying so plainly, with the condition that protects them, lets readers make
+an informed choice instead of discovering it.
+
+*Q: Why also tick "Personal communications" in the store, if it's only sent
+when asked?*
+A: The store's categories are about what data can be handled, not how often.
+An email selected and explained is a personal communication leaving the
+browser, even if it only happens on request. Declaring it is accurate, and
+under-declaring is the riskier mistake for both readers and review.

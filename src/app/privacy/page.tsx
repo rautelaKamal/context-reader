@@ -5,7 +5,7 @@ export const metadata = {
   description: 'What ContextReader sends, where it goes, and what is kept.',
 };
 
-const UPDATED = '9 September 2026';
+const UPDATED = '5 November 2026';
 
 export default function Privacy() {
   return (
@@ -30,6 +30,11 @@ export default function Privacy() {
           The surrounding paragraphs are the point of the tool rather than an extra: a line of
           verse cannot be read without the lines around it. Nothing is sent unless you ask for an
           explanation. Selecting text on its own sends nothing.
+        </p>
+        <p>
+          This includes text inside a text box or an embedded frame, such as an email or a chat
+          message you are reading or writing. That text is sent only when you select it and click
+          Explain or press the shortcut.
         </p>
         <p>
           The address is cut back to the site and the path before it is sent, so
