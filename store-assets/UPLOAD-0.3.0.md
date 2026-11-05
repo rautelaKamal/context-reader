@@ -52,8 +52,12 @@ were drawn in a 680-pixel-wide browser window at 1280/680 pixel density, so
 each is exactly 1280x800. The window is 340 pixels tall, shorter than the
 425-pixel frame. The card sizes itself to the window, up to 70% of it, so it
 stays fully in frame below the passage. The frame also shows the page below
-the window. Shot 1's paragraph ends at the selection, so the pill sits on clear
-space instead of covering the next line.
+the window. In shot 1 the rest of the article follows the selected paragraph
+after a wider gap, so the pill sits on clear space, as in the film. The demo
+editorial is fictional and was only three sentences long, so two short
+paragraphs were written for this test page to continue it. In shot 2 the
+card is scrolled, as a reader would, to show the "Their position" heading
+and the line with the marked quote, with no line cut at the card's edges.
 
 The pill shows "Ctrl+Shift+E", which is what Chrome reports on Windows and
 Linux, most of the audience. It was captured on a Mac, from a capture-only

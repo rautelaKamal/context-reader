@@ -2328,3 +2328,36 @@ closed shadow root through the Chrome DevTools Protocol. For each shot it
 checks that the card's bottom edge is inside the frame and that the summary
 isn't cut off by the card's scroll area. It printed a pass or fail line per
 shot, and I tried several zoom levels until all five passed.
+
+## Store screenshots: a full page in shot 1, the marked quote in shot 2
+
+**What changed.** Shot 1's page now continues below the selected paragraph,
+after a wider gap that the Explain pill sits in, so the text reaches as far
+down as in the other shots and the pill covers nothing. The demo editorial is
+fictional and only three sentences long, so its last sentence becomes its own
+paragraph, as in the film, and two short paragraphs were written to continue
+it. In shot 2 the card's body is scrolled, as a reader can scroll it, so the
+"Their position" heading and the line with the yellow verified quote are in
+view, with no line of text cut in half at the top or bottom edge.
+
+**Why.** Shot 1 was half empty. Shot 2 cut a line in half and hid the yellow
+quote, the visual proof that the answer quotes the writer's own words, which
+is the product's main promise.
+
+**What breaks without it.** A half-empty first image, and a screenshot that
+hides the feature it is meant to show.
+
+**Interview questions**
+
+*Q: How do you find a scroll position where no line is cut at either edge?*
+A: Collect the box of every line of text in the scrolling area (a Range over
+each text node gives one rectangle per line with getClientRects). Then try
+each scroll position in turn and keep the first one where the heading and the
+quote's lines are fully inside the visible area and no line crosses the top
+or bottom edge.
+
+*Q: How do you check that the pill doesn't cover text?*
+A: Compare rectangles. Read the pill's box from the extension's shadow root,
+read every line box of the page's paragraphs, and check that none of them
+overlap. The capture script prints the result, so a bad layout fails loudly
+instead of slipping through.
