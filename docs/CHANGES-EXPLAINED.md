@@ -2492,3 +2492,39 @@ bottom without anyone measuring anything.
 A: Whichever is first of the two must take the free space. If both kept it they'd
 split the space and float apart, so the footer drops its auto margin when the
 line is showing.
+
+## Reveal the answer at a readable pace
+
+**What changed.** The card now shows an answer's text at about 500 characters a
+second, instead of as fast as it arrives. It's only the text the server really
+sent, in order, held back a little. When the answer is complete the reveal speeds
+up if it has to, and it always ends within 800ms. Clicking, pressing a key or
+scrolling inside the card shows everything at once. So does changing lens, and so
+does the reader's reduced motion setting. The footer and the yellow line now wait
+for the reveal to end. The logic is in `src/extension/pacer.js`, with its own tests
+on a fake clock.
+
+**Why.** Measurements showed the stream was working: text arrived in small pieces
+about 90ms apart. But the model writes 1,200 to 1,500 characters a second, so a
+whole answer landed in about half a second and looked pasted.
+
+**What breaks without it.** Grey placeholders, then a wall of text. Without the cap
+and the skip, a long answer would make the reader wait for text the extension
+already has.
+
+**Interview questions**
+
+*Q: How is a fixed 800ms cap kept when text keeps piling up?*
+A: Once `done` arrives the pacer knows exactly how much is left and how long it has,
+so each tick uses the faster of 500 a second and "characters left divided by time
+left". That spreads the catch-up evenly instead of dumping the rest at the end. If
+the browser runs a timer late, as in a hidden tab, the first tick past the deadline
+shows everything.
+
+*Q: Why is the skip done just after the click rather than during it?*
+A: Finishing can redraw the card's text. If that happened first, a click on a
+section heading would land on a button that's already been replaced, and the click
+would be lost. Running it after the event lets the heading's click work, and the
+redraw then uses the new open or closed state. It also means Go deeper's click
+can't skip the new answer it has just asked for, because the pacer was read before
+the button's handler replaced it.

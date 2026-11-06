@@ -23,6 +23,7 @@
   const COMMAND = 'explain-selection';
   const Quotes = globalThis.ContextReaderQuotes;
   const Placement = globalThis.ContextReaderPlacement;
+  const Pacer = globalThis.ContextReaderPacer;
 
   const MAX_SELECTION = 2000;
   const BLOCK_TAGS = new Set([
@@ -578,6 +579,7 @@
       card.append(head, body, legend, foot);
       this.root.appendChild(card);
       this.card = { el: card, head, lensSlot, menu, body, legend, foot, left, dot, deeper };
+      Pacer.skipOnTouch(card, () => this.pacer);
 
       this.anchor = rect;
       this.renderLens();
@@ -666,6 +668,8 @@
       this.mode = id;
       // A new lens starts fast again; deep is something you ask for.
       this.depth = 'fast';
+      // Someone comparing lenses is past waiting for words to appear.
+      this.lensChanged = true;
       this.renderLens();
       this.card.lens?.focus();
       this.request();
@@ -766,6 +770,7 @@
       if (!this.context) return;
       this.port?.disconnect();
       this.port = null;
+      this.pacer?.cancel();
       this.setLoading();
 
       const payload = { ...this.context };
@@ -791,6 +796,11 @@
       }
       this.port = port;
       this.stream = null;
+      this.pacer = Pacer.createPacer({
+        show: (op, text) => this.showPiece(this.stream, op, text),
+        paced: !this.lensChanged && Pacer.wantsPacing(window),
+      });
+      this.lensChanged = false;
 
       // The worker can be stopped mid-answer, and then nothing more arrives.
       let watchdog;
@@ -819,7 +829,7 @@
 
     onStreamEvent(port, event) {
       if (!this.card || this.port !== port) return;
-      const st = this.stream ??= { words: false, finished: false, summary: null, summaryText: '', sections: [], current: null };
+      const st = this.stream ??= { words: false, finished: false, summary: null, summaryText: '', sections: [], current: null, received: 0, sectionOpen: false };
       switch (event.type) {
         case 'start': {
           if (typeof event.remaining === 'number') this.remaining = event.remaining;
@@ -834,25 +844,18 @@
           break;
         }
         case 'summary': {
-          if (!st.summary) this.beginStream(st);
-          st.summaryText += event.text;
-          st.summary.append(event.text);
+          this.pacer.push({ type: 'summary', text: event.text, paced: true });
           break;
         }
         case 'section': {
-          if (!st.summary) this.beginStream(st);
-          this.finishPart(st);
-          const part = this.makeSection(st.sections.length, event.label);
-          part.raw = '';
-          st.sections.push(part);
-          st.current = part;
-          this.card.body.appendChild(part.wrap);
+          st.sectionOpen = this.openSet().has(st.received);
+          st.received += 1;
+          this.pacer.push({ type: 'section', label: event.label, text: '', paced: false });
           break;
         }
         case 'delta': {
-          if (!st.current) this.onStreamEvent(port, { type: 'section', label: '' });
-          st.current.raw += event.text;
-          st.current.text.append(event.text);
+          if (!st.received) this.onStreamEvent(port, { type: 'section', label: '' });
+          this.pacer.push({ type: 'delta', text: event.text, paced: st.sectionOpen });
           break;
         }
         case 'done': {
@@ -860,7 +863,7 @@
           this.port = null;
           port.disconnect();
           // The full reply, parsed properly on the server, is what the card keeps.
-          this.renderResult(event.result, { keepPlace: true });
+          this.pacer.end(() => this.renderResult(event.result, { keepPlace: true }));
           break;
         }
         case 'error': {
@@ -869,6 +872,11 @@
           if (typeof event.remaining === 'number') this.remaining = event.remaining;
           this.port = null;
           try { port.disconnect(); } catch { /* already gone */ }
+          if (event.partial && st.words) {
+            this.pacer.end(() => this.showCutOff(st, event.message));
+            break;
+          }
+          this.pacer.cancel();
           if (event.code === 'deep_resting') {
             // Back to the answer the reader already had, with Go deeper switched off until the reset.
             this.deepResting = true;
@@ -877,8 +885,7 @@
             if (this.lastResult) this.renderResult(this.lastResult, { keepPlace: true });
             else this.setError(`Go deeper is resting until ${restingUntil(event.resetAt)}. Your allowance was not charged.`, { retryable: false, title: 'Go deeper is resting' });
             this.card.deeper.focus();
-          } else if (event.partial && st.words) this.showCutOff(st, event.message);
-          else {
+          } else {
             this.setError(event.message || 'Something went wrong on our side. Try again.', {
               retryable: !event.overLimit,
               title: event.overLimit ? "That's today's explanations" : "Couldn't get an explanation.",
@@ -888,7 +895,26 @@
         }
         default:
       }
-      if (event.type === 'summary' || event.type === 'section' || event.type === 'delta') this.fitBody({ streaming: true });
+    }
+
+    /** Draws the next piece of the answer, as the pacer releases it. */
+    showPiece(st, op, text) {
+      if (!st.summary) this.beginStream(st);
+      if (op.type === 'summary') {
+        st.summaryText += text;
+        st.summary.append(text);
+      } else if (op.type === 'section') {
+        this.finishPart(st);
+        const part = this.makeSection(st.sections.length, op.label);
+        part.raw = '';
+        st.sections.push(part);
+        st.current = part;
+        this.card.body.appendChild(part.wrap);
+      } else {
+        st.current.raw += text;
+        st.current.text.append(text);
+      }
+      this.fitBody({ streaming: true });
     }
 
     /** First words: the skeleton goes, and the summary starts filling in its place. */
@@ -952,10 +978,16 @@
       node.append(text.slice(at));
     }
 
-    /** One section: a heading that opens and closes it, and its text. Open state is kept per lens. */
-    makeSection(i, label) {
+    /** Which sections are open under this lens: the first, until the reader says otherwise. */
+    openSet() {
       const open = this.openSections.get(this.mode) ?? new Set([0]);
       this.openSections.set(this.mode, open);
+      return open;
+    }
+
+    /** One section: a heading that opens and closes it, and its text. Open state is kept per lens. */
+    makeSection(i, label) {
+      const open = this.openSet();
       const wrap = el('div', 'section');
       const id = `cr-sec-${i}`;
       const headBtn = el('button', 'sec-head');
@@ -996,6 +1028,7 @@
       // Replacing the streamed text with the final version happens in one
       // task, so nothing paints in between; keep the reader's scroll position.
       const scrolled = body.scrollTop;
+      const focused = [...body.querySelectorAll('.sec-head')].indexOf(this.root.activeElement);
       body.textContent = '';
       body.removeAttribute('aria-busy');
 
@@ -1016,6 +1049,8 @@
 
       if (keepPlace) this.fitBody(); else this.positionCard();
       body.scrollTop = scrolled;
+      // The keyboard stays where it was, on the same heading in the new text.
+      if (focused >= 0) body.querySelectorAll('.sec-head')[focused]?.focus({ preventScroll: true });
     }
 
     /**
@@ -1078,6 +1113,7 @@
       // Closing mid-answer stops the download too.
       this.port?.disconnect();
       this.port = null;
+      this.pacer?.cancel();
       this.card.el.remove();
       this.card = null;
       this.anchor = null;

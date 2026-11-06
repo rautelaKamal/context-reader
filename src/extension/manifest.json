@@ -21,6 +21,7 @@
       "js": [
         "quotes.js",
         "placement.js",
+        "pacer.js",
         "content.js"
       ],
       "run_at": "document_idle",
