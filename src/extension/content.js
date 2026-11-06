@@ -135,6 +135,9 @@
       border-radius: 3px; padding: 0 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone;
     }
 
+    .legend { padding: 8px 16px 0; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--soft); }
+    .legend[hidden] { display: none; }
+    .legend:not([hidden]) + .foot { padding-top: 3px; border-top: 0; }
     .foot {
       display: flex; align-items: center; gap: 6px; padding: 9px 16px; border-top: 1px solid var(--rule);
       font-size: 12.5px; color: var(--soft); font-variant-numeric: tabular-nums;
@@ -568,9 +571,12 @@
       reserved.setAttribute('aria-hidden', 'true');
       foot.append(left, dot, deeper, el('span', 'spacer'), reserved);
 
-      card.append(head, body, foot);
+      const legend = el('div', 'legend', 'Yellow = quoted word for word from the page.');
+      legend.hidden = true;
+
+      card.append(head, body, legend, foot);
       this.root.appendChild(card);
-      this.card = { el: card, head, lensSlot, menu, body, foot, left, dot, deeper };
+      this.card = { el: card, head, lensSlot, menu, body, legend, foot, left, dot, deeper };
 
       this.anchor = rect;
       this.renderLens();
@@ -722,6 +728,7 @@
       last.setAttribute('aria-hidden', 'true');
       body.appendChild(last);
       if (this.depth === 'deep') body.appendChild(el('p', 'note', 'This can take up to half a minute.'));
+      this.setLegend();
       this.setFoot({ loading: true });
       this.card.deeper.disabled = true;
       this.positionCard();
@@ -743,6 +750,7 @@
       }
       // No lens chosen yet (the first request failed): drop the loading placeholder.
       if (!this.mode) this.card.lensSlot.textContent = '';
+      this.setLegend();
       this.setFoot();
       this.setDeeper(this.depth);
       this.positionCard();
@@ -917,9 +925,16 @@
       note.appendChild(retry);
       this.card.body.appendChild(note);
       this.card.body.style.minHeight = '';
+      this.setLegend();
       this.setFoot();
       this.setDeeper(this.depth);
       this.fitBody();
+    }
+
+    /** Says what yellow means once an answer has finished, only if it has any. */
+    setLegend() {
+      const { legend, body } = this.card;
+      legend.hidden = !body.querySelector('mark');
     }
 
     /** Text with verified quotes (3+ words, word for word in what was sent) marked; nothing else. */
@@ -928,7 +943,9 @@
       let at = 0;
       for (const q of Quotes.checkQuotes(text, sent)) {
         if (!q.verified) continue;
-        node.append(text.slice(at, q.start), el('mark', null, text.slice(q.start, q.end)));
+        const mark = el('mark', null, text.slice(q.start, q.end));
+        mark.title = 'Quoted word for word from the page';
+        node.append(text.slice(at, q.start), mark);
         at = q.end;
       }
       node.append(text.slice(at));
@@ -994,6 +1011,7 @@
         body.appendChild(part.wrap);
       });
       body.style.minHeight = '';
+      this.setLegend();
 
       if (keepPlace) this.fitBody(); else this.positionCard();
       body.scrollTop = scrolled;
@@ -1006,9 +1024,9 @@
      */
     fitBody({ streaming = false } = {}) {
       if (!this.card) return;
-      const { el: card, head, foot, body } = this.card;
+      const { el: card, head, legend, foot, body } = this.card;
       const cap = this.card.placement?.maxHeight ?? Placement.tallestCard(window.innerHeight);
-      const room = cap - head.offsetHeight - foot.offsetHeight;
+      const room = cap - head.offsetHeight - legend.offsetHeight - foot.offsetHeight;
       // While words are arriving the edge stays put; it snaps to a section
       // boundary once, when the answer is complete.
       if (streaming) { body.style.maxHeight = `${room}px`; return; }

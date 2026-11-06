@@ -2443,3 +2443,29 @@ scrolled since the card appeared. Measuring on open uses the current numbers.
 *Q: Why also set a maximum height if it already picks the roomier side?*
 A: On a very short window neither side may be tall enough. Scrolling inside the
 menu keeps every lens reachable.
+
+## Say what yellow means
+
+**What changed.** Each highlighted quote now has a tooltip, "Quoted word for word
+from the page". When a finished or cut-off answer has at least one highlight, a
+quiet line above the footer row says "Yellow = quoted word for word from the
+page." With no highlights, nothing extra appears. The highlighting itself is
+unchanged.
+
+**Why.** Yellow is the product's proof that an answer rests on the writer's own
+words, but nothing told the reader so. A proof nobody can read isn't doing its job.
+
+**What breaks without it.** Readers take the yellow for decoration, or wonder
+why some words are marked and others aren't.
+
+**Interview questions**
+
+*Q: Why wait until the answer has finished to show the line?*
+A: Highlights are drawn as each part completes, so the first can appear while
+text is still arriving. Adding a line then would push the footer down mid-stream.
+Waiting costs a second at most, and avoids a jump.
+
+*Q: Why does the height calculation need to know about the new line?*
+A: The body gets whatever the card's maximum leaves after the header and footer.
+If the new line weren't counted, the card would exceed its maximum by that line's
+height, and could run off the screen, the bug the placement fix just removed.
