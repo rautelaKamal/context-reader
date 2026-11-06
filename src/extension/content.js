@@ -22,6 +22,7 @@
   const ORPHANED = 'ContextReader was just installed or updated. Refresh this page to use it.';
   const COMMAND = 'explain-selection';
   const Quotes = globalThis.ContextReaderQuotes;
+  const Placement = globalThis.ContextReaderPlacement;
 
   const MAX_SELECTION = 2000;
   const BLOCK_TAGS = new Set([
@@ -997,7 +998,8 @@
     fitBody({ streaming = false } = {}) {
       if (!this.card) return;
       const { el: card, head, foot, body } = this.card;
-      const room = Math.min(window.innerHeight * 0.7, 700) - head.offsetHeight - foot.offsetHeight;
+      const cap = this.card.placement?.maxHeight ?? Placement.tallestCard(window.innerHeight);
+      const room = cap - head.offsetHeight - foot.offsetHeight;
       // While words are arriving the edge stays put; it snaps to a section
       // boundary once, when the answer is complete.
       if (streaming) { body.style.maxHeight = `${room}px`; return; }
@@ -1017,39 +1019,30 @@
     }
 
     /**
-     * Place the card below the selection, flipping above when there is not
-     * room. This has to run again after the content lands: while loading the
-     * card is a few lines tall, and deciding from that height puts a full-size
-     * result off the bottom of the screen.
+     * Place the card once, for the tallest it can get (see placement.js), so a
+     * growing answer never flips sides or slides. Above and pinned cards keep
+     * their top where it is, so they reserve their height from the start: a
+     * card that grew upward would push the words already shown.
      */
     positionCard() {
       if (!this.card || !this.anchor) return;
-      this.fitBody();
 
       const card = this.card.el;
       const rect = this.anchor;
-      const gap = 10;
 
       const width = Math.min(420, window.innerWidth - 32);
       let left = window.scrollX + rect.left;
       left = Math.min(left, window.scrollX + window.innerWidth - width - 16);
       card.style.left = `${Math.max(window.scrollX + 16, left)}px`;
 
-      // Decided once per card, for the tallest the card can get, so a growing
-      // answer never makes it flip sides or slide. Above the selection, the
-      // full height is reserved up front, because a card that grew upward
-      // would push the words already shown.
       if (!this.card.placement) {
-        const tallest = Math.min(window.innerHeight * 0.7, 700);
-        const below = window.innerHeight - rect.bottom >= tallest + gap || rect.top < tallest + gap;
-        this.card.placement = below ? 'below' : 'above';
-        if (!below) {
-          card.style.minHeight = `${tallest}px`;
-          card.style.top = `${Math.max(window.scrollY + 8, window.scrollY + rect.top - tallest - gap)}px`;
-        } else {
-          card.style.top = `${window.scrollY + rect.bottom + gap}px`;
-        }
+        const place = Placement.placeCard({ viewportHeight: window.innerHeight, rectTop: rect.top, rectBottom: rect.bottom });
+        this.card.placement = place;
+        card.style.maxHeight = `${place.maxHeight}px`;
+        card.style.top = `${window.scrollY + place.top}px`;
+        if (place.side !== 'below') card.style.minHeight = `${place.maxHeight}px`;
       }
+      this.fitBody();
     }
 
     closeCard({ restoreFocus = false } = {}) {

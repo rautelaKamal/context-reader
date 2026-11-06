@@ -2390,3 +2390,35 @@ whole thing is over quickly.
 A: Compression can hold bytes back until it has enough to compress, so a test
 that doesn't ask for it might stream while a real browser doesn't. Measuring
 with the browser's request headers tests the path readers actually take.
+
+## Keep the answer card on screen
+
+**What changed.** A new file, `src/extension/placement.js`, works out where the
+card goes as plain arithmetic: viewport height and the selection's top and
+bottom in, side, top and maximum height out. If the tallest card fits below or
+above the selection, it goes there as before. If neither fits, it goes on the
+side with more room and is capped to that room, and its body scrolls inside it.
+If both sides have under 260px, it pins to the bottom of the viewport and may
+overlap the selection. `positionCard` and `fitBody` now use the result.
+
+**Why.** When neither side had room, the card fell back to "below" and ran off
+the screen, so the reader had to scroll the page to read the answer, and the
+page scrolling could carry the selection out of view too.
+
+**What breaks without it.** On a short window or with a large selection, the end
+of the answer and the footer sit off the bottom of the screen.
+
+**Interview questions**
+
+*Q: Why make this a pure function rather than leave it in the method?*
+A: The decision depends only on three numbers, so taking it out of the DOM code
+means it can be tested with fifteen cases in milliseconds, including a sweep
+across window sizes that checks the card is always on screen. Testing the same
+thing through a browser would be slow and would cover far fewer positions.
+
+*Q: Why does a card above the selection reserve its height before the answer
+arrives?*
+A: A card above grows towards the selection, so to keep its bottom edge in place
+its top would have to move up as words arrive, pushing text the reader is
+already looking at. Fixing the top and reserving the height means nothing moves,
+at the cost of blank space when the answer turns out short.
