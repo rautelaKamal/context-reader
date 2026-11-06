@@ -2528,3 +2528,24 @@ would be lost. Running it after the event lets the heading's click work, and the
 redraw then uses the new open or closed state. It also means Go deeper's click
 can't skip the new answer it has just asked for, because the pacer was read before
 the button's handler replaced it.
+
+## Version 0.3.1
+
+**What changed.** `manifest.json` now says 0.3.1. This release holds the card
+placement fix, the lens menu fix, the note on what yellow means, and the paced reveal.
+
+**Why.** Chrome uses this number to decide whether an installed extension needs
+updating, and the store refuses an upload that doesn't raise it.
+
+**What breaks without it.** The store rejects the new zip, and a tester can't tell
+which build they're looking at.
+
+**Interview questions**
+
+*Q: Does this release ask existing users for new permissions?*
+A: No. `permissions` and `host_permissions` didn't change. The only other manifest
+change is two more scripts in the content script list, and those trigger no warning.
+
+*Q: Why bump the version in its own commit?*
+A: So the number marks the point where the release was finished, and it's easy to
+see what went into it from the commits before.
