@@ -2361,3 +2361,32 @@ A: Compare rectangles. Read the pill's box from the extension's shadow root,
 read every line box of the page's paragraphs, and check that none of them
 overlap. The capture script prints the result, so a bad layout fails loudly
 instead of slipping through.
+
+## Show what a streamed reply looks like on the wire
+
+**What changed.** `scripts/timing.mjs` has a new `--events` mode. For each run
+it prints the time to first byte, the time to first text, the total time, how
+many network chunks and events arrived, the gaps between pieces of text, and a
+timeline of when each piece landed. It asks for the same compression as Chrome
+and reports what the server used. When pointed at a remote server it no longer
+checks the local model key, which that server doesn't use.
+
+**Why.** Readers see grey placeholders, then the whole answer. That could mean
+the server buffers the stream, the text arrives in a few big chunks, or the
+model is simply fast. Each has a different fix, or none, so we measure first.
+
+**What breaks without it.** We'd be guessing, and could spend time fixing
+something that isn't the cause.
+
+**Interview questions**
+
+*Q: How do you tell a buffered stream from a fast one?*
+A: Look at arrival times, not the total. If every event lands in one moment at
+the end, something is buffering. If small pieces land spread out over the reply
+and the last one lands just before the end, it is really streaming, even if the
+whole thing is over quickly.
+
+*Q: Why does the script ask for Chrome's compression?*
+A: Compression can hold bytes back until it has enough to compress, so a test
+that doesn't ask for it might stream while a real browser doesn't. Measuring
+with the browser's request headers tests the path readers actually take.
