@@ -2469,3 +2469,26 @@ Waiting costs a second at most, and avoids a jump.
 A: The body gets whatever the card's maximum leaves after the header and footer.
 If the new line weren't counted, the card would exceed its maximum by that line's
 height, and could run off the screen, the bug the placement fix just removed.
+
+## Keep the footer at the bottom of a reserved card
+
+**What changed.** The footer now sits at the bottom of the card even when the
+card is taller than its contents.
+
+**Why.** A card above the selection or pinned to the bottom reserves its height,
+and the body can stop short of it at a section boundary. The spare room then
+appeared under the footer, which looked like a mistake.
+
+**What breaks without it.** A strip of blank card below the footer.
+
+**Interview questions**
+
+*Q: How does `margin-top: auto` push something to the bottom?*
+A: In a flex column, an auto margin takes all the free space on that side. So the
+footer's top margin grows to fill whatever is left, and the footer ends up at the
+bottom without anyone measuring anything.
+
+*Q: Why do both the yellow line and the footer have it?*
+A: Whichever is first of the two must take the free space. If both kept it they'd
+split the space and float apart, so the footer drops its auto margin when the
+line is showing.

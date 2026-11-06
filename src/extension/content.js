@@ -135,11 +135,12 @@
       border-radius: 3px; padding: 0 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone;
     }
 
-    .legend { padding: 8px 16px 0; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--soft); }
+    /* In a card with reserved height, spare room stays above the footer. */
+    .legend { margin-top: auto; padding: 8px 16px 0; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--soft); }
     .legend[hidden] { display: none; }
-    .legend:not([hidden]) + .foot { padding-top: 3px; border-top: 0; }
+    .legend:not([hidden]) + .foot { margin-top: 0; padding-top: 3px; border-top: 0; }
     .foot {
-      display: flex; align-items: center; gap: 6px; padding: 9px 16px; border-top: 1px solid var(--rule);
+      display: flex; align-items: center; gap: 6px; margin-top: auto; padding: 9px 16px; border-top: 1px solid var(--rule);
       font-size: 12.5px; color: var(--soft); font-variant-numeric: tabular-nums;
     }
     .deep {
