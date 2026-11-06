@@ -100,6 +100,8 @@
       position: absolute; left: 10px; top: calc(100% + 4px); z-index: 2; width: 300px; padding: 6px;
       background: var(--card); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow);
     }
+    .menu { overflow-y: auto; }
+    .menu.up { top: auto; bottom: calc(100% + 4px); }
     .menu[hidden] { display: none; }
     .menu-title { margin: 4px 10px 6px; font-size: 12px; font-weight: 600; color: var(--soft); }
     .item {
@@ -621,6 +623,13 @@
         menu.appendChild(item);
       }
       menu.hidden = false;
+      // Open towards the room there is, and scroll rather than leave the screen.
+      const head = this.card.head.getBoundingClientRect();
+      const below = window.innerHeight - head.bottom - 12;
+      const above = head.top - 12;
+      const up = menu.scrollHeight > below && above > below;
+      menu.classList.toggle('up', up);
+      menu.style.maxHeight = `${up ? above : below}px`;
       this.card.lens?.setAttribute('aria-expanded', 'true');
       const items = [...menu.querySelectorAll('.item')];
       (items.find((i) => i.getAttribute('aria-checked') === 'true') ?? items[0])?.focus();

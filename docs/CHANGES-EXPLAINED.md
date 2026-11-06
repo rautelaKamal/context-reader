@@ -2422,3 +2422,24 @@ A: A card above grows towards the selection, so to keep its bottom edge in place
 its top would have to move up as words arrive, pushing text the reader is
 already looking at. Fixing the top and reserving the height means nothing moves,
 at the cost of blank space when the answer turns out short.
+
+## Keep the lens menu on screen
+
+**What changed.** The lens menu now opens downward or upward, whichever has the
+room, and scrolls inside itself if it still doesn't fit.
+
+**Why.** A card can now sit low on a short window, and the menu always opened
+downward. In a 420px window it ran 122px off the bottom, hiding lenses.
+
+**What breaks without it.** On a short window the reader can't see or click the
+last lenses.
+
+**Interview questions**
+
+*Q: Why measure when the menu opens instead of once when the card appears?*
+A: The menu's height depends on the lenses for this answer, and the page can have
+scrolled since the card appeared. Measuring on open uses the current numbers.
+
+*Q: Why also set a maximum height if it already picks the roomier side?*
+A: On a very short window neither side may be tall enough. Scrolling inside the
+menu keeps every lens reachable.
